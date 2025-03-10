@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的积分 - 积分商城系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>积分商城系统</h1>
+    </header>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('index') }}">首页</a></li>
+            <li><a href="{{ url_for('products') }}">商品</a></li>
+            <li><a href="{{ url_for('points') }}" class="active">我的积分</a></li>
+            <li><a href="{{ url_for('orders') }}">我的订单</a></li>
+            <li><a href="{{ url_for('user_center') }}">个人中心</a></li>
+        </ul>
+    </nav>
+
+    <div class="points-page">
+        <div class="points-summary">
+            <div>
+                <h2>我的积分余额</h2>
+                <p class="points-balance" id="points-balance">加载中...</p>
+            </div>
+            <div class="points-actions">
+                <button class="earn-points">赚取积分</button>
+                <button class="use-points">使用积分</button>
+            </div>
+        </div>
+
+        <div class="points-history">
+            <h2>积分明细</h2>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>类型</th>
+                        <th>积分变动</th>
+                        <th>详情</th>
+                        <th>剩余积分</th>
+                    </tr>
+                </thead>
+                <tbody id="points-history-body">
+                    <!-- 积分历史记录将通过 JavaScript 动态加载 -->
+                </tbody>
+            </table>
+            <div class="pagination" id="pagination">
+                <!-- 分页按钮将通过 JavaScript 动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 积分商城系统. 保留所有权利.</p>
+    </footer>
+
+    <!-- 引入共享的认证脚本 -->
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <script>
+        const API_BASE_URL = '';
+        let currentPage = 1;
+        const itemsPerPage = 10;
+
+        // 加载积分余额
+        async function loadPointsBalance() {
+            if (!checkProtectedPage()) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/users/points`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('points-balance').textContent = data.points_balance;
+                } else {
+                    if (response.status === 401) {
+                        // Token已过期，清除并重定向
+                        clearToken();
+                        window.location.href = '/';
+                    } else {
+                        console.error('获取积分余额失败');
+                    }
+                }
+            } catch (error) {
+                console.error('获取积分余额失败:', error);
+                alert('获取积分余额失败，请稍后再试');
+            }
+        }
+
+        // 加载积分历史
+        async function loadPointsHistory(page) {
+            if (!checkProtectedPage()) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/points/history?page=${page}&per_page=${itemsPerPage}`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    renderPointsHistory(data.items);
+                    renderPagination(data.total, page);
+                } else {
+                    if (response.status === 401) {
+                        // Token已过期，清除并重定向
+                        clearToken();
+                        window.location.href = '/';
+                    } else {
+                        console.error('获取积分历史失败');
+                        // 可以添加一些示例数据
+                        renderDemoPointsHistory();
+                    }
+                }
+            } catch (error) {
+                console.error('获取积分历史失败:', error);
+                // 使用示例数据
+                renderDemoPointsHistory();
+            }
+        }
+
+        // 渲染积分历史
+        function renderPointsHistory(history) {
+            const tbody = document.getElementById('points-history-body');
+            tbody.innerHTML = '';
+
+            history.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${new Date(item.created_at).toLocaleString()}</td>
+                    <td>${item.type}</td>
+                    <td class="points-change ${item.points > 0 ? 'positive' : 'negative'}">
+                        ${item.points > 0 ? '+' : ''}${item.points}
+                    </td>
+                    <td>${item.description}</td>
+                    <td>${item.balance_after}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 渲染分页
+        function renderPagination(total, currentPage) {
+            const totalPages = Math.ceil(total / itemsPerPage);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            // 上一页按钮
+            const prevButton = document.createElement('button');
+            prevButton.textContent = '上一页';
+            prevButton.disabled = currentPage === 1;
+            prevButton.addEventListener('click', () => loadPointsHistory(currentPage - 1));
+            pagination.appendChild(prevButton);
+
+            // 页码按钮
+            for (let i = 1; i <= totalPages; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.textContent = i;
+                pageButton.classList.toggle('active', i === currentPage);
+                pageButton.addEventListener('click', () => loadPointsHistory(i));
+                pagination.appendChild(pageButton);
+            }
+
+            // 下一页按钮
+            const nextButton = document.createElement('button');
+            nextButton.textContent = '下一页';
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.addEventListener('click', () => loadPointsHistory(currentPage + 1));
+            pagination.appendChild(nextButton);
+        }
+
+        // 渲染示例积分历史
+        function renderDemoPointsHistory() {
+            const demoHistory = [
+                {
+                    created_at: new Date().toISOString(),
+                    type: '商品兑换',
+                    points: -1000,
+                    description: '兑换商品：保温杯',
+                    balance_after: 2000
+                },
+                {
+                    created_at: new Date(Date.now() - 86400000).toISOString(), // 昨天
+                    type: '签到奖励',
+                    points: 100,
+                    description: '每日签到',
+                    balance_after: 3000
+                },
+                {
+                    created_at: new Date(Date.now() - 86400000 * 2).toISOString(), // 前天
+                    type: '任务完成',
+                    points: 500,
+                    description: '完成新手任务',
+                    balance_after: 2900
+                }
+            ];
+
+            renderPointsHistory(demoHistory);
+            renderPagination(demoHistory.length, 1);
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            if (checkProtectedPage()) {
+                loadPointsBalance();
+                loadPointsHistory(currentPage);
+            }
+        });
+
+        // 赚取积分按钮点击事件
+        document.querySelector('.earn-points').addEventListener('click', function() {
+            alert('功能开发中，敬请期待！');
+        });
+
+        // 使用积分按钮点击事件
+        document.querySelector('.use-points').addEventListener('click', function() {
+            window.location.href = '/products';
+        });
+    </script>
+</body>
+</html>

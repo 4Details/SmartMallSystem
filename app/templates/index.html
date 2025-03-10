@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>积分商城系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>积分商城系统</h1>
+    </header>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('index') }}" id="home-link" class="active">首页</a></li>
+            <li><a href="{{ url_for('products') }}" id="products-link">商品</a></li>
+            <li><a href="{{ url_for('points') }}" id="points-link">我的积分</a></li>
+            <li><a href="{{ url_for('orders') }}" id="orders-link">我的订单</a></li>
+            <li><a href="{{ url_for('user_center') }}" id="user-center-link">个人中心</a></li>
+        </ul>
+    </nav>
+    <div class="container">
+        <div class="login-section" id="login-section">
+            <h2>用户登录</h2>
+            <form class="login-form" id="login-form">
+                <input type="email" placeholder="邮箱" id="email" required>
+                <input type="password" placeholder="密码" id="password" required>
+                <button type="submit">登录</button>
+            </form>
+            <p>没有账号？<a href="{{ url_for('register') }}" id="register-link">注册</a></p>
+        </div>
+        <div class="user-info" id="user-info" style="display: none;">
+            <h2>用户信息</h2>
+            <p>用户名: <span id="username"></span></p>
+            <p>积分余额: <span id="points-balance"></span></p>
+            <button id="logout-btn">退出登录</button>
+        </div>
+        <div class="hero">
+            <h2>欢迎来到积分商城</h2>
+            <p>在这里，您可以使用积分兑换各种精美商品</p>
+        </div>
+        <h2>热门商品</h2>
+        <div class="products" id="products-container">
+            <!-- 商品将通过 JavaScript 动态加载 -->
+        </div>
+    </div>
+    <footer>
+        <p>&copy; 2025 积分商城系统. 保留所有权利.</p>
+    </footer>
+
+    <!-- 引入共享的认证脚本 -->
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <script>
+        // 获取商品列表
+        async function fetchProducts() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/products`);
+                if (response.ok) {
+                    const data = await response.json();
+                    renderProducts(data.products);
+                }
+            } catch (error) {
+                console.error('获取商品列表失败:', error);
+                renderDemoProducts(); // 使用示例数据
+            }
+        }
+
+        // 渲染商品列表
+        function renderProducts(products) {
+            const container = document.getElementById('products-container');
+
+            // 如果没有商品数据，使用示例数据
+            if (!products || products.length === 0) {
+                renderDemoProducts();
+                return;
+            }
+
+            // 清空容器
+            container.innerHTML = '';
+
+            // 添加商品卡片
+            products.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+
+                card.innerHTML = `
+                    <img src="${product.image_url || 'https://via.placeholder.com/150'}" alt="${product.name}">
+                    <h3>${product.name}</h3>
+                    <p class="points">所需积分: ${product.points_price}</p>
+                    <p class="stock">库存: ${product.stock}</p>
+                    <button data-id="${product.id}">查看详情</button>
+                `;
+
+                // 添加点击事件
+                const button = card.querySelector('button');
+                button.addEventListener('click', () => {
+                    window.location.href = `/product/${product.id}`;
+                });
+
+                container.appendChild(card);
+            });
+        }
+
+        // 渲染示例商品数据
+        function renderDemoProducts() {
+            const demoProducts = [
+                {
+                    id: 1,
+                    name: "无线蓝牙耳机",
+                    points_price: 2000,
+                    stock: 50,
+                    image_url: "https://via.placeholder.com/150/4a90e2/ffffff?text=耳机"
+                },
+                {
+                    id: 2,
+                    name: "智能手环",
+                    points_price: 3000,
+                    stock: 30,
+                    image_url: "https://via.placeholder.com/150/27ae60/ffffff?text=手环"
+                },
+                {
+                    id: 3,
+                    name: "便携式充电宝",
+                    points_price: 1500,
+                    stock: 100,
+                    image_url: "https://via.placeholder.com/150/e74c3c/ffffff?text=充电宝"
+                }
+            ];
+
+            renderProducts(demoProducts);
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchProducts();
+        });
+    </script>
+</body>
+</html>

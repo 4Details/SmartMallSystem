@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 积分商城系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .register-section {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin: 2rem auto;
+            max-width: 500px;
+        }
+
+        .register-form {
+            display: flex;
+            flex-direction: column;
+            margin: 0 auto;
+        }
+
+        .register-form input {
+            margin-bottom: 1rem;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 1rem;
+        }
+
+        .register-form button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 0.8rem;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+
+        .register-form button:hover {
+            background-color: #2980b9;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 0.9rem;
+            margin-top: 0.3rem;
+        }
+
+        .success-message {
+            color: #27ae60;
+            font-size: 0.9rem;
+            margin-top: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>积分商城系统</h1>
+    </header>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('index') }}" id="home-link">首页</a></li>
+            <li><a href="{{ url_for('products') }}" id="products-link">商品</a></li>
+            <li><a href="{{ url_for('points') }}" id="points-link">我的积分</a></li>
+            <li><a href="{{ url_for('orders') }}" id="orders-link">我的订单</a></li>
+            <li><a href="{{ url_for('user_center') }}" id="user-center-link">个人中心</a></li>
+        </ul>
+    </nav>
+    <div class="container">
+        <div class="register-section">
+            <h2>用户注册</h2>
+            <form class="register-form" id="register-form">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" required>
+                    <div class="error-message" id="username-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">邮箱</label>
+                    <input type="email" id="email" name="email" required>
+                    <div class="error-message" id="email-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" required>
+                    <div class="error-message" id="password-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm-password">确认密码</label>
+                    <input type="password" id="confirm-password" name="confirm-password" required>
+                    <div class="error-message" id="confirm-password-error"></div>
+                </div>
+
+                <button type="submit">注册</button>
+                <div class="success-message" id="register-success" style="display: none;"></div>
+            </form>
+            <p style="margin-top: 1rem; text-align: center;">已有账号？<a href="{{ url_for('index') }}">登录</a></p>
+        </div>
+    </div>
+    <footer>
+        <p>&copy; 2025 积分商城系统. 保留所有权利.</p>
+    </footer>
+
+    <script>
+        // API 基础 URL
+        const API_BASE_URL = '';
+
+        // 表单验证
+        function validateForm() {
+            let isValid = true;
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            // 重置错误信息
+            document.getElementById('username-error').textContent = '';
+            document.getElementById('email-error').textContent = '';
+            document.getElementById('password-error').textContent = '';
+            document.getElementById('confirm-password-error').textContent = '';
+
+            // 验证用户名
+            if (username.trim() === '') {
+                document.getElementById('username-error').textContent = '用户名不能为空';
+                isValid = false;
+            } else if (username.length < 3) {
+                document.getElementById('username-error').textContent = '用户名长度不能少于3个字符';
+                isValid = false;
+            }
+
+            // 验证邮箱
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                document.getElementById('email-error').textContent = '请输入有效的邮箱地址';
+                isValid = false;
+            }
+
+            // 验证密码
+            if (password.length < 6) {
+                document.getElementById('password-error').textContent = '密码长度不能少于6个字符';
+                isValid = false;
+            }
+
+            // 验证确认密码
+            if (password !== confirmPassword) {
+                document.getElementById('confirm-password-error').textContent = '两次输入的密码不一致';
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        // 注册表单提交
+        document.getElementById('register-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (!validateForm()) {
+                return;
+            }
+
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/users/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                if (response.ok) {
+                    // 注册成功
+                    const successMessage = document.getElementById('register-success');
+                    successMessage.textContent = '注册成功！3秒后将跳转到登录页面...';
+                    successMessage.style.display = 'block';
+
+                    // 3秒后跳转到登录页面
+                    setTimeout(() => {
+                        window.location.href = "{{ url_for('index') }}";
+                    }, 3000);
+                } else {
+                    const data = await response.json();
+                    if (data.message) {
+                        if (data.message.includes('email')) {
+                            document.getElementById('email-error').textContent = data.message;
+                        } else if (data.message.includes('username')) {
+                            document.getElementById('username-error').textContent = data.message;
+                        } else {
+                            alert(data.message);
+                        }
+                    } else {
+                        alert('注册失败，请稍后再试');
+                    }
+                }
+            } catch (error) {
+                console.error('注册请求失败:', error);
+                alert('注册请求失败，请稍后再试');
+            }
+        });
+    </script>
+</body>
+</html>
