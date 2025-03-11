@@ -195,7 +195,7 @@ def api_users():
         )
 
         return jsonify({
-            'items': [user.to_dict() for user in users_page.items],
+            'items': [user.to_dict(include_private=True) for user in users_page.items],
             'page': users_page.page,
             'pages': users_page.pages,
             'per_page': users_page.per_page,
@@ -241,7 +241,7 @@ def api_products():
         )
 
         return jsonify({
-            'items': [product.to_dict() for product in products_page.items],
+            'items': [product.to_dict(include_admin_info=True) for product in products_page.items],
             'page': products_page.page,
             'pages': products_page.pages,
             'per_page': products_page.per_page,
@@ -255,17 +255,24 @@ def api_products():
 @admin_required
 def api_dashboard_stats():
     """获取仪表盘统计数据"""
+    logging.info("开始获取仪表盘统计数据...")
+
     user_id = session.get('admin_user_id')
     if not user_id:
+        logging.warning("未找到admin_user_id，返回401")
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
         user = UserService.get_user_by_id(user_id)
         if not user or 'admin' not in [role.name for role in user.roles]:
+            logging.warning(f"用户 {user_id} 不是管理员，返回403")
             return jsonify({"error": "Admin privileges required"}), 403
+
+        logging.info("开始查询统计数据...")
 
         # 获取用户总数
         total_users = db.session.query(db.func.count(User.id)).scalar() or 0
+        logging.info(f"用户总数: {total_users}")
 
         # 获取商品总数
         total_products = db.session.query(db.func.count(Product.id)).scalar() or 0
@@ -304,7 +311,21 @@ def api_dashboard_stats():
             db.func.date(User.created_at)
         ).all()
 
-        return jsonify({
+        # 转换日期格式
+        daily_users_dict = {}
+        for date_val, count in daily_users:
+            if isinstance(date_val, str):
+                # 如果是字符串，尝试解析为日期
+                try:
+                    formatted_date = datetime.strptime(date_val, '%Y-%m-%d').strftime('%Y-%m-%d')
+                except ValueError:
+                    formatted_date = date_val
+            else:
+                # 如果是日期对象，直接格式化
+                formatted_date = date_val.strftime('%Y-%m-%d')
+            daily_users_dict[formatted_date] = count
+
+        response_data = {
             "total_users": total_users,
             "total_products": total_products,
             "new_users_today": new_users_today,
@@ -312,13 +333,12 @@ def api_dashboard_stats():
             "membership_stats": {
                 name: count for name, count in membership_stats
             },
-            "daily_users": {
-                date.strftime('%Y-%m-%d'): count
-                for date, count in daily_users
-            }
-        })
+            "daily_users": daily_users_dict
+        }
+        logging.info("统计数据获取成功")
+        return jsonify(response_data)
     except Exception as e:
-        logging.error(f"获取仪表盘统计数据失败: {str(e)}")
+        logging.error(f"获取仪表盘统计数据失败: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/add_points', methods=['POST'])
@@ -367,25 +387,98 @@ def api_deduct_points():
 def api_add_product():
     """添加新商品"""
     data = request.json
+    logging.info(f"接收到添加商品请求: {data}")
+
+    # 验证必填字段
+    required_fields = ['name', 'points_price']
+    for field in required_fields:
+        if field not in data:
+            error_msg = f"缺少必填字段: {field}"
+            logging.error(error_msg)
+            return jsonify({"error": error_msg}), 400
+
     try:
+        # 转换数据类型
+        try:
+            points_price = int(data['points_price'])
+            cash_price = float(data['cash_price']) if data.get('cash_price') else None
+            stock = int(data.get('stock', 0))
+        except (ValueError, TypeError) as e:
+            error_msg = f"数据类型转换错误: {str(e)}"
+            logging.error(error_msg)
+            return jsonify({"error": error_msg}), 400
+
         product = ProductService.create_product(
             name=data['name'],
-            points_price=data['points_price'],
+            points_price=points_price,
             description=data.get('description'),
-            cash_price=data.get('cash_price'),
-            stock=data.get('stock', 0),
+            cash_price=cash_price,
+            stock=stock,
             category=data.get('category'),
             image_url=data.get('image_url')
         )
+
+        logging.info(f"商品添加成功: {product.id}")
         return jsonify({
             "message": "Product added successfully",
             "product": product.to_dict()
         }), 201
+    except ValueError as e:
+        error_msg = f"数据验证错误: {str(e)}"
+        logging.error(error_msg)
+        return jsonify({"error": error_msg}), 400
     except Exception as e:
-        logging.error(f"添加商品失败: {str(e)}")
+        error_msg = f"添加商品失败: {str(e)}"
+        logging.error(error_msg, exc_info=True)
+        return jsonify({"error": error_msg}), 500
+
+@admin_bp.route('/api/products/<product_id>', methods=['GET'])
+def api_get_product(product_id):
+    """获取单个商品详情"""
+    try:
+        product = ProductService.get_product_by_id(product_id)
+        # 如果用户已登录且是管理员，返回更多信息
+        include_admin_info = False
+        user_id = session.get('admin_user_id')
+        if user_id:
+            user = UserService.get_user_by_id(user_id)
+            if user and 'admin' in [role.name for role in user.roles]:
+                include_admin_info = True
+
+        return jsonify(product.to_dict(include_admin_info=include_admin_info)), 200
+    except Exception as e:
+        logging.error(f"获取商品详情失败: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-@admin_bp.route('/api/product_categories', methods=['GET'])
+@admin_bp.route('/api/products/<product_id>/activate', methods=['PUT'])
+@admin_required
+def api_activate_product(product_id):
+    """激活商品"""
+    try:
+        product = ProductService.activate_product(product_id)
+        return jsonify({
+            "message": "Product activated successfully",
+            "product": product.to_dict()
+        }), 200
+    except Exception as e:
+        logging.error(f"激活商品失败: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/products/<product_id>/deactivate', methods=['PUT'])
+@admin_required
+def api_deactivate_product(product_id):
+    """停用商品"""
+    try:
+        product = ProductService.deactivate_product(product_id)
+        return jsonify({
+            "message": "Product deactivated successfully",
+            "product": product.to_dict()
+        }), 200
+    except Exception as e:
+        logging.error(f"停用商品失败: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/products/categories', methods=['GET'])
 @admin_required
 def api_product_categories():
     """获取所有商品分类"""
@@ -393,12 +486,29 @@ def api_product_categories():
         categories = ProductService.get_categories()
         # 将查询结果转换为列表
         category_list = [category[0] for category in categories if category[0]]
-
-        # 如果没有分类，添加一些默认分类
-        if not category_list:
-            category_list = ["电子产品", "家居用品", "服装配饰", "美妆护肤", "食品饮料", "图书音像", "其他"]
-
+        logging.info(f"获取到的商品分类: {category_list}")
         return jsonify(category_list), 200
     except Exception as e:
-        logging.error(f"获取商品分类失败: {str(e)}")
+        logging.error(f"获取商品分类失败: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/products/<product_id>/stock', methods=['PUT'])
+@admin_required
+def api_update_product_stock(product_id):
+    """更新商品库存"""
+    data = request.json
+    if not data or 'quantity_change' not in data:
+        return jsonify({"error": "Missing quantity_change in request"}), 400
+
+    try:
+        quantity_change = int(data['quantity_change'])
+        product = ProductService.update_stock(product_id, quantity_change)
+        return jsonify({
+            "message": "Stock updated successfully",
+            "product": product.to_dict(include_admin_info=True)
+        }), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.error(f"更新商品库存失败: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500

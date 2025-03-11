@@ -1,688 +1,524 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>商品详情 - 积分商城系统</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        .product-detail-page {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
+{% extends "base.html" %}
 
-        .product-detail {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
+{% block title %}商品详情 - 积分商城{% endblock %}
 
+{% block extra_css %}
+<style>
+    .product-detail-page {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .product-header {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        padding: 1rem;
+    }
+
+    .product-image {
+        width: 100%;
+        height: 400px;
+        object-fit: contain;
+        border-radius: 8px;
+        background: #f8f9fa;
+    }
+
+    .product-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .product-title {
+        font-size: 1.8rem;
+        color: #2c3e50;
+        margin-bottom: 1rem;
+    }
+
+    .product-points {
+        font-size: 2rem;
+        color: #e74c3c;
+        font-weight: bold;
+        margin-bottom: 1.5rem;
+    }
+
+    .product-meta {
+        margin-bottom: 2rem;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        color: #666;
+    }
+
+    .meta-label {
+        min-width: 80px;
+    }
+
+    .product-actions {
+        margin-top: auto;
+    }
+
+    .quantity-control {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .quantity-label {
+        margin-right: 1rem;
+    }
+
+    .quantity-input {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .quantity-btn {
+        padding: 0.5rem 1rem;
+        background: #f8f9fa;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .quantity-btn:hover {
+        background: #e9ecef;
+    }
+
+    .quantity-btn:disabled {
+        background: #eee;
+        cursor: not-allowed;
+    }
+
+    .quantity-value {
+        padding: 0.5rem 1rem;
+        min-width: 40px;
+        text-align: center;
+        border-left: 1px solid #ddd;
+        border-right: 1px solid #ddd;
+    }
+
+    .exchange-button {
+        width: 100%;
+        padding: 1rem;
+        background: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .exchange-button:hover {
+        background: #c0392b;
+    }
+
+    .exchange-button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .product-description {
+        padding: 2rem;
+        border-top: 1px solid #eee;
+        color: #2c3e50;
+        line-height: 1.8;
+    }
+
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.75rem 1.25rem;
+        margin-bottom: 1.5rem;
+        background: #fff;
+        color: #4a90e2;
+        border: 2px solid #4a90e2;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 1rem;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .back-button:before {
+        content: "←";
+        margin-right: 8px;
+        font-size: 1.2em;
+        line-height: 1;
+        transition: transform 0.3s ease;
+    }
+
+    .back-button:hover {
+        background: #4a90e2;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .back-button:hover:before {
+        transform: translateX(-3px);
+    }
+
+    .back-button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 768px) {
         .product-header {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
+            grid-template-columns: 1fr;
         }
 
-        .product-images {
-            padding: 2rem;
+        .product-image {
+            height: 300px;
         }
+    }
+</style>
+{% endblock %}
 
-        .main-image {
-            width: 100%;
-            height: 400px;
-            object-fit: contain;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-        }
+{% block content %}
+<div class="product-detail-page">
+    <a href="/products" class="back-button">返回商品列表</a>
 
-        .thumbnail-container {
-            display: flex;
-            gap: 1rem;
-            overflow-x: auto;
-            padding-bottom: 0.5rem;
-        }
+    <div id="loading" style="text-align: center; padding: 2rem;">加载中...</div>
 
-        .thumbnail {
-            width: 80px;
-            height: 80px;
-            object-fit: cover;
-            border-radius: 4px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.3s ease;
-        }
+    <div id="product-content" style="display: none;">
+        <div class="product-header">
+            <img id="product-image" src="" alt="商品图片" class="product-image">
 
-        .thumbnail:hover, .thumbnail.active {
-            border-color: #4a90e2;
-        }
+            <div class="product-info">
+                <div>
+                    <h1 class="product-title" id="product-title"></h1>
+                    <p class="product-points" id="product-points"></p>
 
-        .product-info {
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .product-title {
-            font-size: 1.8rem;
-            color: #2c3e50;
-            margin: 0 0 1rem 0;
-        }
-
-        .product-points {
-            font-size: 2rem;
-            color: #e74c3c;
-            font-weight: bold;
-            margin-bottom: 1.5rem;
-        }
-
-        .product-meta {
-            margin-bottom: 2rem;
-        }
-
-        .meta-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-
-        .meta-label {
-            min-width: 80px;
-            color: #7f8c8d;
-        }
-
-        .meta-value {
-            color: #2c3e50;
-        }
-
-        .product-actions {
-            margin-top: auto;
-        }
-
-        .quantity-control {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .quantity-label {
-            margin-right: 1rem;
-        }
-
-        .quantity-input {
-            display: flex;
-            align-items: center;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .quantity-btn {
-            padding: 0.5rem 1rem;
-            background-color: #f8f9fa;
-            border: none;
-            cursor: pointer;
-            font-size: 1.2rem;
-            transition: background-color 0.3s ease;
-        }
-
-        .quantity-btn:hover {
-            background-color: #e9ecef;
-        }
-
-        .quantity-value {
-            padding: 0.5rem 1rem;
-            min-width: 40px;
-            text-align: center;
-            border-left: 1px solid #ddd;
-            border-right: 1px solid #ddd;
-        }
-
-        .exchange-button {
-            width: 100%;
-            padding: 1rem;
-            background-color: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .exchange-button:hover {
-            background-color: #c0392b;
-        }
-
-        .product-tabs {
-            margin-top: 2rem;
-        }
-
-        .tab-buttons {
-            display: flex;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .tab-button {
-            padding: 1rem 2rem;
-            background-color: transparent;
-            border: none;
-            border-bottom: 2px solid transparent;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .tab-button.active {
-            border-bottom-color: #4a90e2;
-            color: #4a90e2;
-        }
-
-        .tab-content {
-            padding: 2rem;
-        }
-
-        .tab-pane {
-            display: none;
-        }
-
-        .tab-pane.active {
-            display: block;
-        }
-
-        .product-description {
-            line-height: 1.8;
-            color: #2c3e50;
-        }
-
-        .product-description img {
-            max-width: 100%;
-            height: auto;
-            margin: 1rem 0;
-        }
-
-        .related-products {
-            margin-top: 3rem;
-        }
-
-        .related-products h2 {
-            margin-bottom: 1.5rem;
-            color: #2c3e50;
-        }
-
-        .related-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 1.5rem;
-        }
-
-        @media (max-width: 768px) {
-            .product-header {
-                grid-template-columns: 1fr;
-            }
-
-            .product-images, .product-info {
-                padding: 1.5rem;
-            }
-
-            .main-image {
-                height: 300px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>积分商城系统</h1>
-    </header>
-    <nav>
-        <ul>
-            <li><a href="{{ url_for('index') }}">首页</a></li>
-            <li><a href="{{ url_for('products') }}" class="active">商品</a></li>
-            <li><a href="{{ url_for('points') }}">我的积分</a></li>
-            <li><a href="{{ url_for('orders') }}">我的订单</a></li>
-            <li><a href="{{ url_for('user_center') }}">个人中心</a></li>
-        </ul>
-    </nav>
-
-    <div class="product-detail-page">
-        <div class="product-detail">
-            <div class="product-header">
-                <div class="product-images">
-                    <img src="https://via.placeholder.com/600x400?text=商品主图" alt="商品主图" class="main-image" id="main-image">
-                    <div class="thumbnail-container" id="thumbnail-container">
-                        <img src="https://via.placeholder.com/600x400?text=商品主图" alt="缩略图1" class="thumbnail active" data-src="https://via.placeholder.com/600x400?text=商品主图">
-                        <img src="https://via.placeholder.com/600x400?text=商品细节1" alt="缩略图2" class="thumbnail" data-src="https://via.placeholder.com/600x400?text=商品细节1">
-                        <img src="https://via.placeholder.com/600x400?text=商品细节2" alt="缩略图3" class="thumbnail" data-src="https://via.placeholder.com/600x400?text=商品细节2">
-                        <img src="https://via.placeholder.com/600x400?text=商品细节3" alt="缩略图4" class="thumbnail" data-src="https://via.placeholder.com/600x400?text=商品细节3">
-                    </div>
-                </div>
-                <div class="product-info">
-                    <h1 class="product-title" id="product-title">商品名称加载中...</h1>
-                    <p class="product-points" id="product-points">0 积分</p>
                     <div class="product-meta">
                         <div class="meta-item">
-                            <span class="meta-label">商品编号:</span>
-                            <span class="meta-value" id="product-id">-</span>
+                            <span class="meta-label">库存状态：</span>
+                            <span class="meta-value" id="product-stock"></span>
                         </div>
                         <div class="meta-item">
-                            <span class="meta-label">库存状态:</span>
-                            <span class="meta-value" id="product-stock">-</span>
+                            <span class="meta-label">兑换次数：</span>
+                            <span class="meta-value" id="exchange-count">0</span>
                         </div>
-                        <div class="meta-item">
-                            <span class="meta-label">上架时间:</span>
-                            <span class="meta-value" id="product-time">-</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">兑换次数:</span>
-                            <span class="meta-value" id="exchange-count">-</span>
-                        </div>
-                    </div>
-                    <div class="product-actions">
-                        <div class="quantity-control">
-                            <span class="quantity-label">数量:</span>
-                            <div class="quantity-input">
-                                <button class="quantity-btn" id="decrease-btn">-</button>
-                                <span class="quantity-value" id="quantity-value">1</span>
-                                <button class="quantity-btn" id="increase-btn">+</button>
-                            </div>
-                        </div>
-                        <button class="exchange-button" id="exchange-btn">立即兑换</button>
                     </div>
                 </div>
-            </div>
-            <div class="product-tabs">
-                <div class="tab-buttons">
-                    <button class="tab-button active" data-tab="description">商品详情</button>
-                    <button class="tab-button" data-tab="specification">规格参数</button>
-                    <button class="tab-button" data-tab="reviews">用户评价</button>
-                </div>
-                <div class="tab-content">
-                    <div class="tab-pane active" id="description">
-                        <div class="product-description" id="product-description">
-                            <p>商品详情加载中...</p>
+
+                <div class="product-actions">
+                    <div class="quantity-control">
+                        <span class="quantity-label">数量：</span>
+                        <div class="quantity-input">
+                            <button class="quantity-btn" id="decrease-btn">-</button>
+                            <span class="quantity-value" id="quantity-value">1</span>
+                            <button class="quantity-btn" id="increase-btn">+</button>
                         </div>
                     </div>
-                    <div class="tab-pane" id="specification">
-                        <div class="product-description">
-                            <h3>规格参数</h3>
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <tr>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee; width: 30%;">品牌</td>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">品牌名称</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">型号</td>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">型号信息</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">材质</td>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">材质信息</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">尺寸</td>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">尺寸信息</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">颜色</td>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">颜色信息</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">重量</td>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">重量信息</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">产地</td>
-                                    <td style="padding: 0.8rem; border-bottom: 1px solid #eee;">产地信息</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 0.8rem;">保修期</td>
-                                    <td style="padding: 0.8rem;">保修期信息</td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="tab-pane" id="reviews">
-                        <div class="product-description">
-                            <h3>用户评价</h3>
-                            <p>暂无评价</p>
-                        </div>
-                    </div>
+                    <button class="exchange-button" id="exchange-btn">立即兑换</button>
                 </div>
             </div>
         </div>
 
-        <div class="related-products">
-            <h2>相关推荐</h2>
-            <div class="related-grid" id="related-products">
-                <!-- 相关商品将通过 JavaScript 动态加载 -->
-            </div>
+        <div class="product-description">
+            <h2>商品详情</h2>
+            <div id="description-content"></div>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <footer>
-        <p>&copy; 2025 积分商城系统. 保留所有权利.</p>
-    </footer>
-
-    <script>
-        // API 基础 URL
-        const API_BASE_URL = '';
-        let token = localStorage.getItem('token');
-        let productId = getProductIdFromUrl();
-        let currentQuantity = 1;
-        let maxStock = 10; // 默认最大库存
-
-        // 从URL获取商品ID
-        function getProductIdFromUrl() {
-            const pathParts = window.location.pathname.split('/');
-            return pathParts[pathParts.length - 1];
-        }
-
-        // 检查登录状态
-        function checkAuth() {
-            if (!token) {
-                console.log('用户未登录，仅允许浏览');
-                return false;
-            }
-            return true;
-        }
-
-        // 加载商品详情
-        async function loadProductDetail() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/products/${productId}`);
-
-                if (response.ok) {
-                    const product = await response.json();
-                    renderProductDetail(product);
-                    loadRelatedProducts(product.category_id);
-                } else {
-                    console.error('获取商品详情失败');
-                    // 使用模拟数据
-                    renderDemoProductDetail();
-                }
-            } catch (error) {
-                console.error('获取商品详情失败:', error);
-                // 使用模拟数据
-                renderDemoProductDetail();
+{% block extra_js %}
+<script>
+    // 使用已存在的 API_BASE_URL 变量，如果不存在则创建
+    if (typeof API_BASE_URL === 'undefined' || API_BASE_URL === '') {
+        window.API_BASE_URL = '/api';
+    }
+    var token = localStorage.getItem('token');
+    // 更安全地获取商品ID
+    let productId = '';
+    try {
+        const pathParts = window.location.pathname.split('/');
+        console.log('URL路径分割:', pathParts);
+        productId = pathParts[pathParts.length - 1];
+        if (!productId) {
+            console.error('无法从URL中获取商品ID');
+            // 尝试从localStorage获取
+            productId = localStorage.getItem('lastViewedProductId');
+            if (productId) {
+                console.log('从localStorage获取到商品ID:', productId);
+            } else {
+                console.error('无法获取商品ID');
             }
         }
+    } catch (error) {
+        console.error('获取商品ID时出错:', error);
+    }
+    let currentQuantity = 1;
+    let maxStock = 0;
 
-        // 渲染商品详情
-        function renderProductDetail(product) {
-            document.title = `${product.name} - 积分商城系统`;
-            document.getElementById('product-title').textContent = product.name;
-            document.getElementById('product-points').textContent = `${product.points_price} 积分`;
-            document.getElementById('product-id').textContent = product.id;
-            document.getElementById('product-stock').textContent = `库存 ${product.stock} 件`;
-            document.getElementById('product-time').textContent = new Date(product.created_at).toLocaleDateString();
-            document.getElementById('exchange-count').textContent = product.exchange_count || 0;
-            document.getElementById('product-description').innerHTML = product.description || '暂无详细描述';
+    console.log('当前页面路径:', window.location.pathname);
+    console.log('提取的商品ID:', productId);
 
-            // 设置最大库存
-            maxStock = product.stock;
+    // 加载商品详情
+    async function loadProductDetail() {
+        const loadingElem = document.getElementById('loading');
+        const contentElem = document.getElementById('product-content');
 
-            // 更新主图
-            if (product.image_url) {
-                document.getElementById('main-image').src = product.image_url;
-
-                // 更新缩略图
-                const thumbnailContainer = document.getElementById('thumbnail-container');
-                thumbnailContainer.innerHTML = '';
-
-                // 主图作为第一个缩略图
-                const mainThumbnail = document.createElement('img');
-                mainThumbnail.src = product.image_url;
-                mainThumbnail.alt = product.name;
-                mainThumbnail.className = 'thumbnail active';
-                mainThumbnail.setAttribute('data-src', product.image_url);
-                thumbnailContainer.appendChild(mainThumbnail);
-
-                // 添加其他缩略图（如果有）
-                if (product.images && Array.isArray(product.images)) {
-                    product.images.forEach(img => {
-                        const thumbnail = document.createElement('img');
-                        thumbnail.src = img;
-                        thumbnail.alt = product.name;
-                        thumbnail.className = 'thumbnail';
-                        thumbnail.setAttribute('data-src', img);
-                        thumbnailContainer.appendChild(thumbnail);
-                    });
-                }
-
-                // 重新绑定缩略图点击事件
-                initThumbnailEvents();
-            }
+        // 验证商品ID
+        if (!productId) {
+            loadingElem.innerHTML = `
+                <div style="color: #e74c3c;">
+                    <p>错误：无法获取商品ID</p>
+                    <p style="font-size: 0.9em;">请确保URL格式正确: /products/{商品ID}</p>
+                    <a href="/products" style="display: inline-block; margin-top: 1em; padding: 0.5em 1em; background: #4a90e2; color: white; text-decoration: none; border-radius: 4px;">返回商品列表</a>
+                </div>
+            `;
+            return;
         }
 
-        // 渲染模拟商品详情
-        function renderDemoProductDetail() {
-            const demoProduct = {
-                id: productId || '1',
-                name: "高品质无线蓝牙耳机",
-                points_price: 2000,
-                stock: 50,
-                created_at: new Date().toISOString(),
-                exchange_count: 120,
-                description: `
-                    <h3>产品介绍</h3>
-                    <p>这款高品质无线蓝牙耳机采用最新蓝牙5.0技术，提供稳定连接和高清音质。内置高性能芯片，支持aptX HD编码，让您享受CD级音质体验。</p>
-                    <img src="https://via.placeholder.com/800x400?text=产品展示" alt="产品展示">
-                    <h3>产品特点</h3>
-                    <ul>
-                        <li>蓝牙5.0技术，连接更稳定</li>
-                        <li>aptX HD编码，CD级音质体验</li>
-                        <li>智能降噪，沉浸式聆听体验</li>
-                        <li>触控操作，使用更便捷</li>
-                        <li>长效续航，单次充电可使用8小时</li>
-                        <li>人体工学设计，佩戴舒适</li>
-                    </ul>
-                    <h3>包装清单</h3>
-                    <p>耳机 x 1、充电盒 x 1、充电线 x 1、耳塞（S/M/L各一对）、说明书 x 1</p>
-                `,
-                image_url: "https://via.placeholder.com/600x400/4a90e2/ffffff?text=无线蓝牙耳机",
-                images: [
-                    "https://via.placeholder.com/600x400/e74c3c/ffffff?text=耳机细节1",
-                    "https://via.placeholder.com/600x400/f39c12/ffffff?text=耳机细节2",
-                    "https://via.placeholder.com/600x400/27ae60/ffffff?text=耳机细节3"
-                ],
-                category_id: 1
+        try {
+            console.log('开始加载商品详情, ID:', productId);
+            console.log('当前页面URL:', window.location.href);
+
+            // 显示更多调试信息
+            loadingElem.innerHTML = `
+                <div>
+                    <p>加载中...</p>
+                    <p style="font-size: 0.8em; color: #666;">商品ID: ${productId}</p>
+                    <p style="font-size: 0.8em; color: #666;">API URL: ${API_BASE_URL}/products/${productId}</p>
+                </div>
+            `;
+
+            console.log('API URL:', `${API_BASE_URL}/products/${productId}`);
+
+            loadingElem.style.display = 'block';
+            contentElem.style.display = 'none';
+
+            // 添加超时处理
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+
+            console.log('发起API请求...');
+
+            // 直接使用完整URL
+            const apiUrl = `/api/products/${productId}`;  // 使用硬编码的URL，避免变量问题
+            console.log('完整API URL:', apiUrl);
+
+            // 使用fetch API发起请求
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache'  // 防止缓存
+                },
+                signal: controller.signal,
+                credentials: 'same-origin'  // 包含cookies
+            });
+
+            console.log('API请求已发送，等待响应...');
+            clearTimeout(timeoutId); // 清除超时
+
+            console.log('API响应状态:', response.status);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API错误响应:', errorText);
+                throw new Error(errorText);
+            }
+
+            const responseText = await response.text();
+            console.log('API响应内容:', responseText);
+
+            const product = JSON.parse(responseText);
+            console.log('解析后的商品数据:', product);
+
+            renderProductDetail(product);
+
+            loadingElem.style.display = 'none';
+            contentElem.style.display = 'block';
+        } catch (error) {
+            console.error('获取商品详情失败:', error);
+
+            // 获取更详细的错误信息
+            let errorMessage = '';
+            if (error.name === 'AbortError') {
+                errorMessage = '请求超时，请检查网络连接';
+            } else if (error instanceof TypeError) {
+                errorMessage = '网络请求失败，请检查网络连接';
+            } else {
+                errorMessage = error.message || '未知错误，请稍后再试';
+            }
+
+            loadingElem.innerHTML = `
+                <div style="color: #e74c3c;">
+                    <p>获取商品详情失败</p>
+                    <p style="font-size: 0.9em; margin-top: 0.5em;">${errorMessage}</p>
+                    <p style="font-size: 0.8em; margin-top: 0.5em;">
+                        商品ID: ${productId}<br>
+                        请求URL: ${API_BASE_URL}/products/${productId}
+                    </p>
+                    <button onclick="loadProductDetail()" style="margin-top: 1em; padding: 0.5em 1em; border: none; background: #4a90e2; color: white; border-radius: 4px; cursor: pointer;">重新加载</button>
+                    <p style="font-size: 0.8em; margin-top: 1em;">
+                        如果问题持续存在，请检查网络连接或联系客户支持。<br>
+                        错误详情：${error.toString()}
+                    </p>
+                </div>
+            `;
+
+            // 尝试发送错误报告到控制台
+            console.group('商品详情加载失败详情');
+            console.log('商品ID:', productId);
+            console.log('API URL:', `${API_BASE_URL}/products/${productId}`);
+            console.log('页面URL:', window.location.href);
+            console.log('错误类型:', error.name);
+            console.log('错误消息:', error.message);
+            console.log('错误堆栈:', error.stack);
+            console.groupEnd();
+        }
+    }
+
+    // 渲染商品详情
+    function renderProductDetail(product) {
+        document.title = `${product.name} - 积分商城`;
+
+        // 更新商品信息
+        document.getElementById('product-title').textContent = product.name;
+        document.getElementById('product-points').textContent = `${product.points_price} 积分`;
+        document.getElementById('product-stock').textContent = `库存 ${product.stock} 件`;
+        document.getElementById('exchange-count').textContent = product.exchange_count || 0;
+        document.getElementById('description-content').innerHTML = product.description || '暂无详细描述';
+
+        // 更新商品图片
+        const productImage = document.getElementById('product-image');
+        productImage.src = product.image_url || 'https://via.placeholder.com/400x400?text=暂无图片';
+        productImage.alt = product.name;
+
+        // 更新库存限制
+        maxStock = product.stock;
+        updateQuantityControls();
+
+        // 更新兑换按钮状态
+        const exchangeBtn = document.getElementById('exchange-btn');
+        if (!token) {
+            exchangeBtn.textContent = '登录后兑换';
+            exchangeBtn.onclick = () => {
+                // 保存当前URL到localStorage
+                localStorage.setItem('redirectAfterLogin', window.location.href);
+                window.location.href = '/login';
             };
-
-            renderProductDetail(demoProduct);
+        } else if (product.stock <= 0) {
+            exchangeBtn.disabled = true;
+            exchangeBtn.textContent = '暂时缺货';
         }
+    }
 
-        // 加载相关商品
-        async function loadRelatedProducts(categoryId) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/products?category=${categoryId}&limit=4`);
+    // 更新数量控制
+    function updateQuantityControls() {
+        const decreaseBtn = document.getElementById('decrease-btn');
+        const increaseBtn = document.getElementById('increase-btn');
+        const quantityValue = document.getElementById('quantity-value');
+        const exchangeBtn = document.getElementById('exchange-btn');
 
-                if (response.ok) {
-                    const data = await response.json();
-                    renderRelatedProducts(data.products.filter(p => p.id !== productId).slice(0, 4));
-                } else {
-                    renderDemoRelatedProducts();
-                }
-            } catch (error) {
-                console.error('获取相关商品失败:', error);
-                renderDemoRelatedProducts();
+        decreaseBtn.disabled = currentQuantity <= 1;
+        increaseBtn.disabled = currentQuantity >= maxStock;
+        quantityValue.textContent = currentQuantity;
+
+        if (maxStock <= 0) {
+            decreaseBtn.disabled = true;
+            increaseBtn.disabled = true;
+            exchangeBtn.disabled = true;
+            exchangeBtn.textContent = '暂时缺货';
+        }
+    }
+
+    // 初始化数量控制
+    function initQuantityControl() {
+        const decreaseBtn = document.getElementById('decrease-btn');
+        const increaseBtn = document.getElementById('increase-btn');
+
+        decreaseBtn.onclick = () => {
+            if (currentQuantity > 1) {
+                currentQuantity--;
+                updateQuantityControls();
             }
-        }
+        };
 
-        // 渲染相关商品
-        function renderRelatedProducts(products) {
-            const container = document.getElementById('related-products');
-            container.innerHTML = '';
+        increaseBtn.onclick = () => {
+            if (currentQuantity < maxStock) {
+                currentQuantity++;
+                updateQuantityControls();
+            }
+        };
+    }
 
-            if (!products || products.length === 0) {
-                container.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">暂无相关商品</p>';
+    // 初始化兑换按钮
+    function initExchangeButton() {
+        const exchangeBtn = document.getElementById('exchange-btn');
+
+        exchangeBtn.onclick = async () => {
+            if (!token) {
+                window.location.href = '/login';
                 return;
             }
 
-            products.forEach(product => {
-                const card = document.createElement('div');
-                card.className = 'product-card';
-                card.innerHTML = `
-                    <img src="${product.image_url || 'https://via.placeholder.com/200x150?text=商品图片'}" alt="${product.name}" class="product-image">
-                    <div class="product-info" style="padding: 1rem;">
-                        <h3 class="product-title" style="font-size: 1rem;">${product.name}</h3>
-                        <p class="product-points" style="font-size: 1rem;">${product.points_price} 积分</p>
-                        <button class="product-button" style="font-size: 0.9rem;" data-id="${product.id}">查看详情</button>
-                    </div>
-                `;
-
-                // 添加点击事件
-                const button = card.querySelector('.product-button');
-                button.addEventListener('click', () => {
-                    window.location.href = `/product/${product.id}`;
-                });
-
-                container.appendChild(card);
-            });
-        }
-
-        // 渲染模拟相关商品
-        function renderDemoRelatedProducts() {
-            const demoProducts = [
-                {
-                    id: '2',
-                    name: "便携式蓝牙音箱",
-                    points_price: 3000,
-                    image_url: "https://via.placeholder.com/200x150/27ae60/ffffff?text=蓝牙音箱"
-                },
-                {
-                    id: '3',
-                    name: "无线充电器",
-                    points_price: 1500,
-                    image_url: "https://via.placeholder.com/200x150/e74c3c/ffffff?text=无线充电器"
-                },
-                {
-                    id: '4',
-                    name: "智能手环",
-                    points_price: 2500,
-                    image_url: "https://via.placeholder.com/200x150/f39c12/ffffff?text=智能手环"
-                },
-                {
-                    id: '5',
-                    name: "便携式移动电源",
-                    points_price: 1800,
-                    image_url: "https://via.placeholder.com/200x150/9b59b6/ffffff?text=移动电源"
-                }
-            ];
-
-            renderRelatedProducts(demoProducts);
-        }
-
-        // 初始化缩略图点击事件
-        function initThumbnailEvents() {
-            const thumbnails = document.querySelectorAll('.thumbnail');
-            const mainImage = document.getElementById('main-image');
-
-            thumbnails.forEach(thumb => {
-                thumb.addEventListener('click', function() {
-                    // 更新主图
-                    mainImage.src = this.getAttribute('data-src');
-
-                    // 更新活跃状态
-                    thumbnails.forEach(t => t.classList.remove('active'));
-                    this.classList.add('active');
-                });
-            });
-        }
-
-        // 初始化选项卡切换
-        function initTabEvents() {
-            const tabButtons = document.querySelectorAll('.tab-button');
-
-            tabButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const tabId = this.getAttribute('data-tab');
-
-                    // 更新按钮活跃状态
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    this.classList.add('active');
-
-                    // 更新内容显示
-                    document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
-                    document.getElementById(tabId).classList.add('active');
-                });
-            });
-        }
-
-        // 初始化数量控制
-        function initQuantityControl() {
-            const decreaseBtn = document.getElementById('decrease-btn');
-            const increaseBtn = document.getElementById('increase-btn');
-            const quantityValue = document.getElementById('quantity-value');
-
-            decreaseBtn.addEventListener('click', function() {
-                if (currentQuantity > 1) {
-                    currentQuantity--;
-                    quantityValue.textContent = currentQuantity;
-                }
-            });
-
-            increaseBtn.addEventListener('click', function() {
-                if (currentQuantity < maxStock) {
-                    currentQuantity++;
-                    quantityValue.textContent = currentQuantity;
-                }
-            });
-        }
-
-        // 初始化兑换按钮
-        function initExchangeButton() {
-            const exchangeBtn = document.getElementById('exchange-btn');
-
-            exchangeBtn.addEventListener('click', function() {
-                if (!checkAuth()) {
-                    alert('请先登录后再进行兑换');
-                    window.location.href = '/';
-                    return;
-                }
-
-                exchangeProduct();
-            });
-        }
-
-        // 兑换商品
-        async function exchangeProduct() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/exchange`, {
+                const response = await fetch(`${API_BASE_URL}/products/${productId}/exchange`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        product_id: productId,
                         quantity: currentQuantity
                     })
                 });
 
                 if (response.ok) {
+                    const result = await response.json();
                     alert('兑换成功！');
                     window.location.href = '/orders';
                 } else {
-                    const data = await response.json();
-                    alert(data.message || '兑换失败，请稍后再试');
+                    const error = await response.json();
+                    alert(error.error || '兑换失败，请稍后再试');
                 }
             } catch (error) {
-                console.error('兑换请求失败:', error);
+                console.error('兑换失败:', error);
                 alert('兑换失败，请稍后再试');
             }
-        }
+        };
+    }
 
+    // 使用立即执行函数来避免全局变量污染
+    (function() {
         // 页面加载完成后执行
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOMContentLoaded 事件触发');
+            console.log('当前页面URL:', window.location.href);
+            console.log('productId:', productId);
+            console.log('API_BASE_URL:', API_BASE_URL);
+
             loadProductDetail();
-            initThumbnailEvents();
-            initTabEvents();
             initQuantityControl();
             initExchangeButton();
         });
-    </script>
-</body>
-</html>
+
+        // 添加全局错误处理
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('全局错误:', message, 'at', source, lineno, colno);
+            console.error('错误对象:', error);
+        };
+    })();
+</script>
+{% endblock %}

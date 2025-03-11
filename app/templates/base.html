@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}积分商城{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .header {
+            background-color: var(--white);
+            padding: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+        .header .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+        .logo-image {
+            height: 40px;
+            width: auto;
+        }
+        .logo-text {
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        .nav {
+            display: flex;
+            gap: 30px;
+        }
+        .nav a {
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.3s ease;
+        }
+        .nav a:hover,
+        .nav a.active {
+            color: var(--accent-color);
+        }
+        .main-content {
+            margin-top: 80px; /* 为固定定位的header留出空间 */
+            min-height: calc(100vh - 160px); /* 确保内容区域最小高度 */
+        }
+        @media (max-width: 768px) {
+            .header .container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .nav {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 15px;
+            }
+            .main-content {
+                margin-top: 120px;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <a href="{{ url_for('index') }}" class="logo-section">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="积分商城" class="logo-image">
+                <span class="logo-text">积分商城</span>
+            </a>
+            <nav class="nav">
+                <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>首页</a>
+                <a href="{{ url_for('product_list') }}" {% if request.endpoint == 'product_list' %}class="active"{% endif %}>商品</a>
+                <a href="{{ url_for('points') }}" {% if request.endpoint == 'points' %}class="active"{% endif %}>我的积分</a>
+                <a href="{{ url_for('orders') }}" {% if request.endpoint == 'orders' %}class="active"{% endif %}>我的订单</a>
+                <a href="{{ url_for('user_center') }}" {% if request.endpoint == 'user_center' %}class="active"{% endif %}>个人中心</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 积分商城. 保留所有权利.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

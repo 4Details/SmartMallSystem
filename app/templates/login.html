@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}登录 - 积分商城系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    .login-section {
+        padding: 40px 0;
+        background-color: var(--light-gray);
+        min-height: calc(100vh - 160px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .login-container {
+        background-color: var(--white);
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        width: 100%;
+        max-width: 400px;
+    }
+    .login-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .login-title {
+        font-size: 24px;
+        color: var(--text-color);
+        margin-bottom: 10px;
+    }
+    .login-subtitle {
+        color: #666;
+        font-size: 14px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--text-color);
+    }
+    .form-input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .form-button {
+        width: 100%;
+        padding: 12px;
+        background-color: var(--accent-color);
+        color: var(--white);
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.3s ease;
+    }
+    .form-button:hover {
+        background-color: var(--secondary-color);
+    }
+    .register-link {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 14px;
+    }
+    .register-link a {
+        color: var(--accent-color);
+        text-decoration: none;
+    }
+    .register-link a:hover {
+        text-decoration: underline;
+    }
+    .error-message {
+        color: #dc3545;
+        font-size: 14px;
+        margin-top: 5px;
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-section">
+    <div class="login-container">
+        <div class="login-header">
+            <h1 class="login-title">欢迎回来</h1>
+            <p class="login-subtitle">登录您的积分商城账户</p>
+        </div>
+        <form id="login-form">
+            <div class="form-group">
+                <label class="form-label" for="email">电子邮箱</label>
+                <input type="email" class="form-input" id="email" name="email" required>
+                <div class="error-message" id="email-error"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="password">密码</label>
+                <input type="password" class="form-input" id="password" name="password" required>
+                <div class="error-message" id="password-error"></div>
+            </div>
+            <button type="submit" class="form-button">登录</button>
+            <div class="error-message" id="login-error"></div>
+        </form>
+        <div class="register-link">
+            还没有账户？ <a href="{{ url_for('register') }}">立即注册</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('login-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    // 清除之前的错误信息
+    document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    console.log('Attempting to login with email:', email);
+
+    try {
+        const response = await fetch('/api/users/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password }),
+        });
+
+        console.log('Login response status:', response.status);
+
+        const result = await response.json();
+        console.log('Login response:', result);
+
+        if (response.ok) {
+            console.log('Login successful');
+            localStorage.setItem('token', result.access_token);
+
+            // 检查是否有保存的重定向URL
+            const redirectUrl = localStorage.getItem('redirectAfterLogin');
+            if (redirectUrl) {
+                console.log('Redirecting to:', redirectUrl);
+                localStorage.removeItem('redirectAfterLogin'); // 清除保存的URL
+                window.location.href = redirectUrl;
+            } else {
+                console.log('Redirecting to products page');
+                window.location.href = "{{ url_for('product_list') }}"; // 默认重定向到商品页面
+            }
+        } else {
+            console.error('Login failed:', result.error);
+            const loginError = document.getElementById('login-error');
+            loginError.textContent = result.error || '登录失败，请检查您的邮箱和密码';
+            loginError.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Login request failed:', error);
+        const loginError = document.getElementById('login-error');
+        loginError.textContent = '登录请求失败，请检查网络连接并稍后重试';
+        loginError.style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

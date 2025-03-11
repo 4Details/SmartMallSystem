@@ -155,6 +155,9 @@ function updateProductsTable(products) {
                         <i class="bi bi-${product.is_active ? 'arrow-down-circle' : 'arrow-up-circle'}"></i>
                         ${product.is_active ? '下架' : '上架'}
                     </button>
+                    <button class="btn btn-sm btn-primary" onclick="updateStock('${product.id}')">
+                        <i class="bi bi-box-seam"></i> 更新库存
+                    </button>
                 </td>
             </tr>
         `);
@@ -251,21 +254,29 @@ function saveProduct() {
         image_url: $('#product-image-url').val()
     };
 
-    const url = productId ? `/admin/api/products/${productId}` : '/admin/api/products';
+    const url = productId ? `/admin/api/products/${productId}` : '/admin/api/add_product';
     const method = productId ? 'PUT' : 'POST';
+
+    console.log('发送请求:', { url, method, data: productData });
 
     $.ajax({
         url: url,
         method: method,
         contentType: 'application/json',
         data: JSON.stringify(productData),
-        success: function() {
+        success: function(response) {
+            console.log('请求成功:', response);
             productModal.hide();
             loadProducts(currentPage);
             showMessage('操作成功', productId ? '商品更新成功' : '商品添加成功');
         },
         error: function(error) {
-            showMessage('操作失败', productId ? '更新商品失败' : '添加商品失败', 'error');
+            console.error('请求失败:', error);
+            let errorMessage = '操作失败';
+            if (error.responseJSON && error.responseJSON.error) {
+                errorMessage = error.responseJSON.error;
+            }
+            showMessage('操作失败', errorMessage, 'error');
         }
     });
 }
@@ -286,6 +297,35 @@ function toggleProductStatus(productId, activate) {
                 showMessage('操作失败', `商品${activate ? '上架' : '下架'}失败`, 'error');
             }
         });
+    });
+}
+
+function updateStock(productId) {
+    const quantityChange = prompt("请输入库存变更数量（正数增加，负数减少）：");
+    if (quantityChange === null) return; // 用户取消操作
+
+    const change = parseInt(quantityChange);
+    if (isNaN(change)) {
+        showMessage('操作失败', '请输入有效的数字', 'error');
+        return;
+    }
+
+    $.ajax({
+        url: `/admin/api/products/${productId}/stock`,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ quantity_change: change }),
+        success: function(response) {
+            loadProducts(currentPage);
+            showMessage('操作成功', `库存已更新。新库存: ${response.product.stock}`);
+        },
+        error: function(error) {
+            let errorMessage = '更新库存失败';
+            if (error.responseJSON && error.responseJSON.error) {
+                errorMessage = error.responseJSON.error;
+            }
+            showMessage('操作失败', errorMessage, 'error');
+        }
     });
 }
 </script>

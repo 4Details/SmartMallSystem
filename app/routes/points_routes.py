@@ -1,9 +1,18 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, redirect, url_for
 from ..services.points_service import PointsService
 from ..utils.exceptions import AppError
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from functools import wraps
 
 points_bp = Blueprint('points', __name__)
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not get_jwt_identity():
+            return redirect(url_for('user.login_page'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @points_bp.route('/balance', methods=['GET'])
 @jwt_required()

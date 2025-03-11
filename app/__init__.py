@@ -50,6 +50,10 @@ def create_app(config_name=None):
     Session(app)
     csrf = CSRFProtect(app)
 
+    # 豁免特定路由的 CSRF 保护
+    csrf.exempt(user_bp)  # 为用户相关的路由豁免 CSRF 保护
+    csrf.exempt(admin_bp)  # 为管理员相关的路由豁免 CSRF 保护
+
     # JWT配置
     @jwt.user_identity_loader
     def user_identity_lookup(user):
@@ -94,15 +98,14 @@ def create_app(config_name=None):
             'error': 'token_expired'
         }), 401
 
-    # 配置CORS
+    # 配置CORS - 允许所有源
     CORS(app, resources={
         r"/*": {
-            "origins": "*",
+            "origins": "*",  # 允许所有源
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
             "expose_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True,
-            "send_wildcard": False
+            "supports_credentials": True
         }
     })
 
@@ -146,6 +149,11 @@ def register_frontend_routes(app):
         """首页路由"""
         return render_template('index.html')
 
+    @app.route('/login')
+    def login():
+        """登录页面路由"""
+        return render_template('login.html')
+
     @app.route('/register')
     def register():
         """注册页面路由"""
@@ -162,11 +170,11 @@ def register_frontend_routes(app):
         return render_template('points.html')
 
     @app.route('/products')
-    def products():
+    def product_list():
         """商品列表路由"""
         return render_template('products.html')
 
-    @app.route('/product/<int:product_id>')
+    @app.route('/products/<product_id>')
     def product_detail(product_id):
         """商品详情路由"""
         return render_template('product_detail.html')

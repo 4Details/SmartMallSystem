@@ -99,23 +99,30 @@ class Product(db.Model):
             'applied_promotions': [p.to_dict() for p in active_promotions]
         }
 
-    def to_dict(self, include_promotions=False):
+    def to_dict(self, include_promotions=False, include_admin_info=False):
         """将商品信息转换为字典"""
+        # 基础信息，所有用户都可以看到
         result = {
             'id': str(self.id),
             'name': self.name,
             'description': self.description,
             'points_price': self.points_price,
             'cash_price': float(self.cash_price) if self.cash_price else None,
-            'stock': self.stock,
             'image_url': self.image_url,
             'category': self.category,
             'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'attributes': json.loads(self.attributes) if self.attributes else {},
-            'currency': self.currency.code if self.currency else None
+            'stock': self.stock,  # 让所有用户都能看到库存信息
+            'in_stock': self.stock > 0
         }
+
+        # 管理员可以看到的额外信息
+        if include_admin_info:
+            result.update({
+                'created_at': self.created_at.isoformat() if self.created_at else None,
+                'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+                'attributes': json.loads(self.attributes) if self.attributes else {},
+                'currency': self.currency.code if self.currency else None
+            })
 
         if include_promotions:
             result['active_promotions'] = [

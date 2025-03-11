@@ -1,7 +1,9 @@
 // auth.js - 用户认证和登录状态管理
 
 // API 基础 URL
-const API_BASE_URL = '';
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = '/api';
+}
 
 // 获取存储的令牌
 function getToken() {
@@ -31,7 +33,7 @@ async function fetchUserProfile() {
             return null;
         }
 
-        const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+        const response = await fetch(`${API_BASE_URL}/users/profile`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -53,7 +55,7 @@ async function fetchUserProfile() {
 // 登录函数
 async function login(email, password) {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/users/login`, {
+        const response = await fetch(`${API_BASE_URL}/users/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -64,11 +66,13 @@ async function login(email, password) {
         if (response.ok) {
             const data = await response.json();
             setToken(data.access_token);
-            return { success: true };
+            localStorage.setItem('user', JSON.stringify(data.user));
+            return { success: true, user: data.user };
         } else {
+            const errorData = await response.json();
             return {
                 success: false,
-                message: '登录失败，请检查邮箱和密码'
+                message: errorData.error || '登录失败，请检查邮箱和密码'
             };
         }
     } catch (error) {
@@ -80,42 +84,61 @@ async function login(email, password) {
     }
 }
 
+// 获取当前用户信息
+function getCurrentUser() {
+    const userString = localStorage.getItem('user');
+    return userString ? JSON.parse(userString) : null;
+}
+
+// 更新用户信息
+function updateCurrentUser(user) {
+    localStorage.setItem('user', JSON.stringify(user));
+}
+
 // 退出登录
 function logout() {
     clearToken();
+    localStorage.removeItem('user');
     // 可以在这里添加其他退出登录时需要执行的操作
 }
 
 // 更新UI以反映登录状态
 async function updateAuthUI() {
     const isLoggedIn = isAuthenticated();
-    const loginSection = document.getElementById('login-section');
-    const userInfoSection = document.getElementById('user-info');
+    const guestContent = document.getElementById('guest-content');
+    const userContent = document.getElementById('user-content');
 
-    if (!loginSection || !userInfoSection) {
+    if (!guestContent || !userContent) {
         return; // 页面上可能没有这些元素
     }
 
     if (isLoggedIn) {
-        loginSection.style.display = 'none';
-        userInfoSection.style.display = 'block';
+        guestContent.style.display = 'none';
+        userContent.style.display = 'block';
 
-        const userProfile = await fetchUserProfile();
-        if (userProfile) {
-            const usernameElement = document.getElementById('username');
-            const pointsBalanceElement = document.getElementById('points-balance');
+        const user = getCurrentUser();
+        if (user) {
+            const usernameElement = document.getElementById('username-display');
+            const pointsBalanceElement = document.getElementById('points-display');
 
             if (usernameElement) {
-                usernameElement.textContent = userProfile.username;
+                usernameElement.textContent = user.username;
             }
 
             if (pointsBalanceElement) {
-                pointsBalanceElement.textContent = userProfile.points_balance;
+                pointsBalanceElement.textContent = user.points_balance;
+            }
+        } else {
+            // 如果本地没有用户信息，尝试从服务器获取
+            const userProfile = await fetchUserProfile();
+            if (userProfile) {
+                updateCurrentUser(userProfile);
+                updateAuthUI(); // 递归调用以更新UI
             }
         }
     } else {
-        if (loginSection) loginSection.style.display = 'block';
-        if (userInfoSection) userInfoSection.style.display = 'none';
+        guestContent.style.display = 'block';
+        userContent.style.display = 'none';
     }
 }
 

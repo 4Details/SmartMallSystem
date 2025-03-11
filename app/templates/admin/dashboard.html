@@ -229,13 +229,23 @@ $(document).ready(function() {
 function loadDashboardData() {
     $.get('/admin/api/dashboard-stats')
         .done(function(response) {
+            if (response.error) {
+                console.error('API返回错误:', response.error);
+                showMessage('加载失败', response.error, 'error');
+                return;
+            }
             $('#total-users').text(response.total_users || 0);
             $('#total-products').text(response.total_products || 0);
             $('#new-users-today').text(response.new_users_today || 0);
             $('#total-orders').text(response.total_orders || 0);
         })
         .fail(function(error) {
-            showMessage('加载失败', '获取仪表盘数据失败', 'error');
+            console.error('API请求失败:', error);
+            let errorMessage = '获取仪表盘数据失败';
+            if (error.responseJSON && error.responseJSON.error) {
+                errorMessage = error.responseJSON.error;
+            }
+            showMessage('加载失败', errorMessage, 'error');
         });
 
     // 加载最近的商品

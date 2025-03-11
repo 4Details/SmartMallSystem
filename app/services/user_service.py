@@ -7,26 +7,64 @@ class UserService:
     @staticmethod
     def create_user(username, email, password, phone=None, address=None):
         """创建新用户"""
-        # 检查用户名和邮箱是否已存在
-        if User.query.filter((User.username == username) | (User.email == email)).first():
-            raise DuplicateUserError("Username or email already exists")
+        try:
+            # 分别检查用户名和邮箱是否已存在
+            if User.query.filter_by(username=username).first():
+                raise DuplicateUserError("Username already exists")
 
-        user = User(
-            username=username,
-            email=email,
-            password=password,
-            phone=phone,
-            address=address
-        )
+            if User.query.filter_by(email=email).first():
+                raise DuplicateUserError("Email already exists")
 
-        # 设置默认会员等级
-        default_level = MembershipLevel.query.filter_by(required_points=0).first()
-        if default_level:
+            # 创建用户实例
+            user = User(
+                username=username,
+                email=email,
+                password=password,
+                phone=phone,
+                address=address
+            )
+
+            # 设置默认会员等级
+            default_level = MembershipLevel.query.filter_by(required_points=0).first()
+            if not default_level:
+                # 如果没有默认会员等级，创建一个
+                default_level = MembershipLevel(
+                    name="Bronze",
+                    description="Basic membership level",
+                    required_points=0,
+                    benefits=json.dumps({"discount_rate": 1.0}),
+                    color_code="#CD7F32"
+                )
+                db.session.add(default_level)
+                db.session.flush()  # 获取ID但不提交
+
             user.membership_level_id = default_level.id
 
-        db.session.add(user)
-        db.session.commit()
-        return user
+            # 添加用户角色
+            user_role = Role.query.filter_by(name='user').first()
+            if not user_role:
+                # 如果没有用户角色，创建一个
+                user_role = Role(
+                    name='user',
+                    description='Regular user with basic access'
+                )
+                db.session.add(user_role)
+                db.session.flush()  # 获取ID但不提交
+
+            user.roles.append(user_role)
+
+            # 保存用户
+            db.session.add(user)
+            db.session.commit()
+            return user
+
+        except DuplicateUserError:
+            db.session.rollback()
+            raise
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"创建用户失败: {str(e)}", exc_info=True)
+            raise ValueError(f"Failed to create user: {str(e)}")
 
     @staticmethod
     def get_user_by_id(user_id):

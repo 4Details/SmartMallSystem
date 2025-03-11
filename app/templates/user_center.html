@@ -1,302 +1,298 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>个人中心 - 积分商城系统</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        .user-center {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
+{% extends "base.html" %}
 
-        .user-panel {
-            display: grid;
-            grid-template-columns: 250px 1fr;
-            gap: 2rem;
-        }
+{% block title %}个人中心 - 积分商城系统{% endblock %}
 
-        .sidebar {
-            background: white;
-            border-radius: 8px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            height: fit-content;
-        }
-
-        .sidebar ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .sidebar li {
-            margin-bottom: 0.5rem;
-        }
-
-        .sidebar a {
-            display: block;
-            padding: 0.8rem 1rem;
-            color: #333;
-            text-decoration: none;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-        }
-
-        .sidebar a:hover, .sidebar a.active {
-            background-color: #4a90e2;
-            color: white;
-        }
-
-        .main-content {
-            background: white;
-            border-radius: 8px;
-            padding: 2rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .profile-section {
-            margin-bottom: 2rem;
-        }
-
+{% block extra_css %}
+<style>
+    .user-center {
+        padding: 40px 0;
+        background-color: var(--light-gray);
+    }
+    .profile-header {
+        background-color: var(--white);
+        padding: 40px;
+        border-radius: 4px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        gap: 30px;
+    }
+    .avatar-section {
+        position: relative;
+    }
+    .avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    .user-info {
+        flex: 1;
+    }
+    .user-name {
+        font-size: 24px;
+        margin-bottom: 10px;
+        color: var(--text-color);
+    }
+    .user-meta {
+        display: flex;
+        gap: 20px;
+        color: #666;
+        font-size: 14px;
+    }
+    .content-section {
+        background-color: var(--white);
+        border-radius: 4px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .section-title {
+        font-size: 18px;
+        color: var(--text-color);
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--text-color);
+    }
+    .form-input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .form-button {
+        padding: 10px 20px;
+        background-color: var(--accent-color);
+        color: var(--white);
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    .form-button:hover {
+        background-color: var(--secondary-color);
+    }
+    .address-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+    }
+    .address-card {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 15px;
+    }
+    .address-actions {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+    }
+    .address-button {
+        padding: 5px 10px;
+        border: 1px solid var(--accent-color);
+        background: none;
+        color: var(--accent-color);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.3s ease;
+    }
+    .address-button:hover {
+        background-color: var(--accent-color);
+        color: var(--white);
+    }
+    @media (max-width: 768px) {
         .profile-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .profile-avatar {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            margin-right: 2rem;
-            object-fit: cover;
-        }
-
-        .profile-info h2 {
-            margin: 0 0 0.5rem 0;
-            color: #2c3e50;
-        }
-
-        .profile-info p {
-            margin: 0;
-            color: #666;
-        }
-
-        .profile-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .stat-card {
-            background: #f8f9fa;
-            padding: 1.5rem;
-            border-radius: 8px;
+            flex-direction: column;
             text-align: center;
         }
-
-        .stat-card h3 {
-            margin: 0 0 0.5rem 0;
-            color: #2c3e50;
+        .user-meta {
+            justify-content: center;
         }
+    }
+</style>
+{% endblock %}
 
-        .stat-card p {
-            margin: 0;
-            font-size: 1.5rem;
-            color: #4a90e2;
-            font-weight: bold;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #2c3e50;
-            font-weight: 500;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 0.8rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-        }
-
-        .save-button {
-            background-color: #4a90e2;
-            color: white;
-            border: none;
-            padding: 0.8rem 2rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s ease;
-        }
-
-        .save-button:hover {
-            background-color: #357abd;
-        }
-
-        @media (max-width: 768px) {
-            .user-panel {
-                grid-template-columns: 1fr;
-            }
-
-            .sidebar {
-                margin-bottom: 1rem;
-            }
-
-            .profile-header {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .profile-avatar {
-                margin: 0 0 1rem 0;
-            }
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>积分商城系统</h1>
-    </header>
-    <nav>
-        <ul>
-            <li><a href="{{ url_for('index') }}">首页</a></li>
-            <li><a href="{{ url_for('products') }}">商品</a></li>
-            <li><a href="{{ url_for('points') }}">我的积分</a></li>
-            <li><a href="{{ url_for('orders') }}">我的订单</a></li>
-            <li><a href="{{ url_for('user_center') }}" class="active">个人中心</a></li>
-        </ul>
-    </nav>
-
-    <div class="user-center">
-        <div class="user-panel">
-            <div class="sidebar">
-                <ul>
-                    <li><a href="#profile" class="active">个人资料</a></li>
-                    <li><a href="#security">账户安全</a></li>
-                    <li><a href="#address">收货地址</a></li>
-                    <li><a href="#notifications">消息通知</a></li>
-                </ul>
+{% block content %}
+<div class="user-center">
+    <div class="container">
+        <div class="profile-header">
+            <div class="avatar-section">
+                <img src="" alt="用户头像" class="avatar" id="user-avatar">
             </div>
-
-            <div class="main-content">
-                <div class="profile-section">
-                    <div class="profile-header">
-                        <img src="https://via.placeholder.com/100" alt="用户头像" class="profile-avatar">
-                        <div class="profile-info">
-                            <h2 id="username">加载中...</h2>
-                            <p>会员等级：<span id="member-level">普通会员</span></p>
-                        </div>
-                    </div>
-
-                    <div class="profile-stats">
-                        <div class="stat-card">
-                            <h3>积分余额</h3>
-                            <p id="points-balance">0</p>
-                        </div>
-                        <div class="stat-card">
-                            <h3>订单数量</h3>
-                            <p id="order-count">0</p>
-                        </div>
-                        <div class="stat-card">
-                            <h3>优惠券</h3>
-                            <p id="coupon-count">0</p>
-                        </div>
-                    </div>
+            <div class="user-info">
+                <h1 class="user-name" id="user-name">加载中...</h1>
+                <div class="user-meta">
+                    <span id="user-email">加载中...</span>
+                    <span id="user-phone">加载中...</span>
+                    <span id="membership-level">加载中...</span>
                 </div>
+            </div>
+        </div>
 
-                <form id="profile-form">
-                    <div class="form-group">
-                        <label for="nickname">昵称</label>
-                        <input type="text" id="nickname" name="nickname" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="email">邮箱</label>
-                        <input type="email" id="email" name="email" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="phone">手机号码</label>
-                        <input type="tel" id="phone" name="phone">
-                    </div>
-                    <button type="submit" class="save-button">保存修改</button>
-                </form>
+        <div class="content-section">
+            <div class="section-header">
+                <h2 class="section-title">基本信息</h2>
+            </div>
+            <form id="profile-form">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-input" id="username" name="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">电子邮箱</label>
+                    <input type="email" class="form-input" id="email" name="email">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">手机号码</label>
+                    <input type="tel" class="form-input" id="phone" name="phone">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">收货地址</label>
+                    <input type="text" class="form-input" id="address" name="address">
+                </div>
+                <button type="submit" class="form-button">保存修改</button>
+                <div class="form-group">
+                    <label class="form-label">会员等级</label>
+                    <input type="text" class="form-input" id="member-level" name="member-level" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">当前积分</label>
+                    <input type="text" class="form-input" id="current-points" name="current-points" readonly>
+                </div>
+            </form>
+        </div>
+
+        <div class="content-section">
+            <div class="section-header">
+                <h2 class="section-title">收货地址</h2>
+            </div>
+            <div class="address-list" id="address-list">
+                <!-- 地址列表将通过 JavaScript 动态加载 -->
             </div>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <footer>
-        <p>&copy; 2025 积分商城系统. 保留所有权利.</p>
-    </footer>
-
-    <!-- 引入共享的认证脚本 -->
-    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
-    <script>
-
-        // 加载用户信息
-        async function loadUserProfile() {
-            if (!checkProtectedPage()) return;
-
-            const userProfile = await fetchUserProfile();
-            if (userProfile) {
-                document.getElementById('username').textContent = userProfile.username;
-                document.getElementById('points-balance').textContent = userProfile.points_balance;
-                document.getElementById('nickname').value = userProfile.username;
-                document.getElementById('email').value = userProfile.email;
-                document.getElementById('phone').value = userProfile.phone || '';
+{% block extra_js %}
+<script>
+    // 加载用户信息
+    async function loadUserProfile() {
+        try {
+            const response = await fetch('/api/users/profile', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            if (response.ok) {
+                const user = await response.json();
+                renderUserProfile(user);
             }
+        } catch (error) {
+            console.error('获取用户信息失败:', error);
+        }
+    }
+
+    // 渲染用户信息
+    function renderUserProfile(user) {
+        document.getElementById('user-avatar').src = user.avatar_url || 'https://via.placeholder.com/100';
+        document.getElementById('user-name').textContent = user.username;
+        document.getElementById('user-email').textContent = user.email;
+        document.getElementById('user-phone').textContent = user.phone || '未设置';
+        document.getElementById('membership-level').textContent = user.membership_level || '普通会员';
+
+        // 填充表单
+        document.getElementById('username').value = user.username;
+        document.getElementById('email').value = user.email;
+        document.getElementById('phone').value = user.phone || '';
+        document.getElementById('member-level').value = user.membership_level || '普通会员';
+        document.getElementById('current-points').value = user.points_balance || '0';
+
+        // 渲染地址列表
+        renderAddressList(user.addresses || []);
+    }
+
+    // 渲染地址列表
+    function renderAddressList(addresses) {
+        const addressList = document.getElementById('address-list');
+        addressList.innerHTML = '';
+
+        if (addresses.length === 0) {
+            addressList.innerHTML = '<p>暂无收货地址</p>';
+            return;
         }
 
-        // 更新用户信息
+        addresses.forEach(address => {
+            const addressCard = document.createElement('div');
+            addressCard.className = 'address-card';
+            addressCard.innerHTML = `
+                <p><strong>${address.recipient_name}</strong></p>
+                <p>${address.phone}</p>
+                <p>${address.province} ${address.city} ${address.district}</p>
+                <p>${address.detailed_address}</p>
+            `;
+            addressList.appendChild(addressCard);
+        });
+    }
+
+    // 处理个人信息更新
+    async function updateProfile(formData) {
+        try {
+            const response = await fetch('/api/users/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    username: formData.get('username'),
+                    email: formData.get('email'),
+                    phone: formData.get('phone'),
+                    address: formData.get('address')
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert('个人信息更新成功！');
+                loadUserProfile(); // 重新加载用户信息
+                return true;
+            } else {
+                const error = await response.json();
+                alert(error.error || '更新失败，请稍后重试');
+                return false;
+            }
+        } catch (error) {
+            console.error('更新个人信息失败:', error);
+            alert('更新失败，请稍后重试');
+            return false;
+        }
+    }
+
+    // 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', function() {
+        loadUserProfile();
+
+        // 处理表单提交
         document.getElementById('profile-form').addEventListener('submit', async function(e) {
             e.preventDefault();
-            if (!checkProtectedPage()) return;
-
-            const formData = {
-                username: document.getElementById('nickname').value,
-                email: document.getElementById('email').value,
-                phone: document.getElementById('phone').value
-            };
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${getToken()}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-
-                if (response.ok) {
-                    alert('个人信息更新成功！');
-                    loadUserProfile();
-                } else {
-                    const data = await response.json();
-                    alert(data.message || '更新失败，请稍后再试');
-                }
-            } catch (error) {
-                console.error('更新用户信息失败:', error);
-                alert('更新失败，请稍后再试');
-            }
+            const formData = new FormData(this);
+            await updateProfile(formData);
         });
-
-        // 页面加载完成后执行
-        document.addEventListener('DOMContentLoaded', function() {
-            if (checkProtectedPage()) {
-                loadUserProfile();
-            }
-        });
-    </script>
-</body>
-</html>
+    });
+</script>
+{% endblock %}
