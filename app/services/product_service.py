@@ -123,6 +123,30 @@ class ProductService:
         return db.session.query(Product.category).distinct().all()
 
     @staticmethod
+    def get_all_products(page=1, per_page=20, sort_by='created_at', sort_order='desc', filter_by=None):
+        """获取所有商品（带分页和筛选）"""
+        query = Product.query
+
+        # 应用过滤条件
+        if filter_by:
+            if 'name' in filter_by and filter_by['name']:
+                query = query.filter(Product.name.ilike(f"%{filter_by['name']}%"))
+            if 'category' in filter_by and filter_by['category']:
+                query = query.filter(Product.category == filter_by['category'])
+            if 'is_active' in filter_by:
+                query = query.filter(Product.is_active == filter_by['is_active'])
+
+        # 应用排序
+        sort_column = getattr(Product, sort_by, Product.created_at)
+        if sort_order.lower() == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
+        # 分页
+        return query.paginate(page=page, per_page=per_page, error_out=False)
+
+    @staticmethod
     def add_promotion(product_id, promotion_id):
         """为商品添加促销活动"""
         product = ProductService.get_product_by_id(product_id)
@@ -152,3 +176,27 @@ class ProductService:
         """获取商品的最终价格（考虑促销活动）"""
         product = ProductService.get_product_by_id(product_id)
         return product.calculate_final_price(quantity)
+
+    @staticmethod
+    def get_all_products(page=1, per_page=20, sort_by='created_at', sort_order='desc', filter_by=None):
+        """获取所有商品，支持分页、排序和过滤"""
+        query = Product.query
+
+        # 应用过滤条件
+        if filter_by:
+            if 'name' in filter_by:
+                query = query.filter(Product.name.ilike(f"%{filter_by['name']}%"))
+            if 'category' in filter_by:
+                query = query.filter(Product.category == filter_by['category'])
+            if 'is_active' in filter_by:
+                query = query.filter(Product.is_active == filter_by['is_active'])
+
+        # 应用排序
+        sort_column = getattr(Product, sort_by, Product.created_at)
+        if sort_order.lower() == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
+        # 分页
+        return query.paginate(page=page, per_page=per_page, error_out=False)

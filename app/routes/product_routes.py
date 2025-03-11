@@ -17,7 +17,7 @@ def get_products():
         in_stock = in_stock.lower() == 'true'
 
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    per_page = request.args.get('per_page', 12, type=int)  # 默认每页12个商品
     sort_by = request.args.get('sort_by', 'created_at')
     sort_order = request.args.get('sort_order', 'desc')
 
@@ -184,6 +184,25 @@ def add_promotion(product_id, promotion_id):
     except AppError as e:
         return jsonify({"error": str(e)}), e.status_code
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@product_bp.route('/categories', methods=['GET'])
+def get_product_categories():
+    try:
+        categories = ProductService.get_categories()
+        return jsonify([category[0] for category in categories if category[0]]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@product_bp.route('/<product_id>', methods=['GET'])
+def get_product_detail(product_id):
+    try:
+        product = ProductService.get_product_by_id(product_id)
+        return jsonify(product.to_dict(include_promotions=True)), 200
+    except AppError as e:
+        return jsonify({"error": str(e)}), e.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
         return jsonify({"error": "An unexpected error occurred"}), 500
 
 @product_bp.route('/<product_id>/promotions/<promotion_id>', methods=['DELETE'])

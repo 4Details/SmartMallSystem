@@ -3,6 +3,11 @@
 
 echo "开始设置积分商城系统环境..."
 
+# 清理 Python 缓存文件
+echo "清理 Python 缓存文件..."
+find . -name "*.pyc" -delete
+find . -name "__pycache__" -delete
+
 # 检查 Python 是否安装
 if command -v python3 &>/dev/null; then
     PYTHON_CMD="python3"

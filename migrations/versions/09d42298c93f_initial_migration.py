@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: c309b04a80b2
+Revision ID: 09d42298c93f
 Revises: 
-Create Date: 2025-03-10 00:37:59.790411
+Create Date: 2025-03-10 23:51:45.947529
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'c309b04a80b2'
+revision = '09d42298c93f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -123,14 +123,16 @@ def upgrade():
     sa.Column('promotion_id', sa.String(length=36), nullable=False),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['promotion_id'], ['promotions.id'], ),
-    sa.PrimaryKeyConstraint('product_id', 'promotion_id')
+    sa.PrimaryKeyConstraint('product_id', 'promotion_id'),
+    info={'bind_key': None}
     )
     op.create_table('user_roles',
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('role_id', sa.String(length=36), nullable=False),
     sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('user_id', 'role_id')
+    sa.PrimaryKeyConstraint('user_id', 'role_id'),
+    info={'bind_key': None}
     )
     # ### end Alembic commands ###
 

@@ -1,0 +1,307 @@
+{% extends "admin/base.html" %}
+
+{% block title %}管理后台 - 仪表盘{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">仪表盘</h1>
+        <div class="d-flex">
+            <div class="dropdown me-2">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dateRangeDropdown" data-bs-toggle="dropdown">
+                    <i class="bi bi-calendar"></i> 今日
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">今日</a></li>
+                    <li><a class="dropdown-item" href="#">本周</a></li>
+                    <li><a class="dropdown-item" href="#">本月</a></li>
+                    <li><a class="dropdown-item" href="#">全年</a></li>
+                </ul>
+            </div>
+            <button class="btn btn-primary" onclick="refreshDashboard()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新
+            </button>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stats-card h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">会员总数</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-users">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-people stats-icon text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stats-card success h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">商品总数</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-products">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-box stats-icon text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stats-card info h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">今日新增会员</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="new-users-today">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-person-plus stats-icon text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stats-card warning h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">订单总数</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-orders">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-receipt stats-icon text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 最近添加的商品 -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">最近添加的商品</h6>
+                    <a href="{{ url_for('admin.products') }}" class="btn btn-sm btn-primary">查看全部</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>商品名称</th>
+                                    <th>积分价格</th>
+                                    <th>库存</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-products">
+                                <!-- 最近商品数据将通过 JavaScript 动态加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近注册的会员 -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">最近注册的会员</h6>
+                    <a href="{{ url_for('admin.admin_users') }}" class="btn btn-sm btn-primary">查看全部</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>用户名</th>
+                                    <th>邮箱</th>
+                                    <th>注册时间</th>
+                                    <th>积分</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-users">
+                                <!-- 最近用户数据将通过 JavaScript 动态加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 系统信息 -->
+    <div class="row">
+        <div class="col-lg-12 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">系统信息</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <div class="card border-left-primary shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                                系统版本
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800">v1.0.0</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="bi bi-info-circle text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-4">
+                            <div class="card border-left-success shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                                服务器状态
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800">正常运行</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="bi bi-check-circle text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-4">
+                            <div class="card border-left-info shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                                当前时间
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="current-time"></div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="bi bi-clock text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    loadDashboardData();
+    updateCurrentTime();
+    setInterval(updateCurrentTime, 1000);
+});
+
+function loadDashboardData() {
+    $.get('/admin/api/dashboard-stats')
+        .done(function(response) {
+            $('#total-users').text(response.total_users || 0);
+            $('#total-products').text(response.total_products || 0);
+            $('#new-users-today').text(response.new_users_today || 0);
+            $('#total-orders').text(response.total_orders || 0);
+        })
+        .fail(function(error) {
+            showMessage('加载失败', '获取仪表盘数据失败', 'error');
+        });
+
+    // 加载最近的商品
+    $.get('/admin/api/products?page=1&per_page=5')
+        .done(function(response) {
+            const tbody = $('#recent-products');
+            tbody.empty();
+
+            response.items.forEach(product => {
+                tbody.append(`
+                    <tr>
+                        <td>${product.name}</td>
+                        <td>${product.points_price}</td>
+                        <td>${product.stock}</td>
+                        <td>
+                            <span class="badge bg-${product.is_active ? 'success' : 'danger'}">
+                                ${product.is_active ? '已上架' : '已下架'}
+                            </span>
+                        </td>
+                    </tr>
+                `);
+            });
+        })
+        .fail(function(error) {
+            console.error('获取最近商品失败:', error);
+        });
+
+    // 加载最近的用户
+    $.get('/admin/api/users?page=1&per_page=5')
+        .done(function(response) {
+            const tbody = $('#recent-users');
+            tbody.empty();
+
+            response.items.forEach(user => {
+                tbody.append(`
+                    <tr>
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td>${formatDateTime(user.created_at)}</td>
+                        <td>${user.points_balance}</td>
+                    </tr>
+                `);
+            });
+        })
+        .fail(function(error) {
+            console.error('获取最近用户失败:', error);
+        });
+}
+
+function updateCurrentTime() {
+    const now = new Date();
+    const options = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    };
+    $('#current-time').text(now.toLocaleString('zh-CN', options));
+}
+
+function refreshDashboard() {
+    showMessage('刷新中', '正在刷新仪表盘数据');
+    loadDashboardData();
+}
+</script>
+{% endblock %}

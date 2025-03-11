@@ -1,19 +1,29 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect, url_for, session, jsonify
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 from flask_cors import CORS
+from flask_session import Session
+from flask_wtf.csrf import CSRFProtect
 from .models import db
 from .routes.user_routes import user_bp
 from .routes.points_routes import points_bp
 from .routes.product_routes import product_bp
+from .routes.admin_routes import admin_bp
 import os
 import logging
 from datetime import timedelta
 
-def create_app(config=None):
+def create_app(config_name=None):
     app = Flask(__name__)
 
-    # 加载配置
+    # 导入配置
+    from config import config
+    if config_name is None:
+        config_name = os.environ.get('FLASK_ENV', 'default')
+    app.config.from_object(config[config_name])
+    config[config_name].init_app(app) if hasattr(config[config_name], 'init_app') else None
+
+    # 基础配置
     app.config.from_mapping(
         SECRET_KEY=os.environ.get('SECRET_KEY', 'dev_key'),
         SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///smart_mall.db'),
@@ -23,7 +33,11 @@ def create_app(config=None):
         UPLOAD_FOLDER=os.environ.get('UPLOAD_FOLDER', 'uploads'),
         MAX_CONTENT_LENGTH=int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024)),
         POINTS_EXPIRATION_DAYS=int(os.environ.get('POINTS_EXPIRATION_DAYS', 365)),
-        DEFAULT_PAGE_SIZE=int(os.environ.get('DEFAULT_PAGE_SIZE', 20))
+        DEFAULT_PAGE_SIZE=int(os.environ.get('DEFAULT_PAGE_SIZE', 20)),
+        SESSION_TYPE='filesystem',
+        SESSION_PERMANENT=True,
+        SESSION_USE_SIGNER=True,
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=2)
     )
 
     if config:
@@ -33,10 +47,64 @@ def create_app(config=None):
     db.init_app(app)
     jwt = JWTManager(app)
     migrate = Migrate(app, db)
+    Session(app)
+    csrf = CSRFProtect(app)
+
+    # JWT配置
+    @jwt.user_identity_loader
+    def user_identity_lookup(user):
+        if isinstance(user, str):
+            return user
+        return user.id if user else None
+
+    @jwt.user_lookup_loader
+    def user_lookup_callback(_jwt_header, jwt_data):
+        from .services.user_service import UserService
+        identity = jwt_data["sub"]
+        logging.info(f"Looking up user with identity: {identity}")
+        try:
+            user = UserService.get_user_by_id(identity)
+            logging.info(f"User found: {user.username if user else 'None'}")
+            return user
+        except Exception as e:
+            logging.error(f"Error looking up user: {str(e)}")
+            return None
+
+    @jwt.invalid_token_loader
+    def invalid_token_callback(error_string):
+        logging.error(f"Invalid token: {error_string}")
+        return jsonify({
+            'msg': 'Invalid token',
+            'error': str(error_string)
+        }), 401
+
+    @jwt.unauthorized_loader
+    def unauthorized_callback(error_string):
+        logging.error(f"Missing Authorization Header: {error_string}")
+        return jsonify({
+            'msg': 'Missing Authorization Header',
+            'error': str(error_string)
+        }), 401
+
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_data):
+        logging.error(f"Token has expired: {jwt_data}")
+        return jsonify({
+            'msg': 'Token has expired',
+            'error': 'token_expired'
+        }), 401
 
     # 配置CORS
-    cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '*').split(',')
-    CORS(app, resources={r"/api/*": {"origins": cors_origins}})
+    CORS(app, resources={
+        r"/*": {
+            "origins": "*",
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "expose_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True,
+            "send_wildcard": False
+        }
+    })
 
     # 配置日志
     log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
@@ -58,6 +126,12 @@ def create_app(config=None):
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(points_bp, url_prefix='/api/points')
     app.register_blueprint(product_bp, url_prefix='/api/products')
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+
+    # 添加管理员登录路由
+    @app.route('/admin')
+    def admin_root():
+        return redirect(url_for('admin.admin_login'))
 
     # 注册前端页面路由
     register_frontend_routes(app)

@@ -1,0 +1,292 @@
+{% extends "admin/base.html" %}
+
+{% block title %}管理后台 - 商品管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">商品管理</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">商品列表</h6>
+            <button class="btn btn-primary" onclick="showAddProductModal()">
+                <i class="bi bi-plus-circle"></i> 添加商品
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="productsTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>商品名称</th>
+                            <th>分类</th>
+                            <th>积分价格</th>
+                            <th>现金价格</th>
+                            <th>库存</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 商品数据将通过 JavaScript 动态加载 -->
+                    </tbody>
+                </table>
+            </div>
+            <nav>
+                <ul class="pagination justify-content-center" id="pagination">
+                    <!-- 分页将通过 JavaScript 动态加载 -->
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑商品模态框 -->
+<div class="modal fade" id="productModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productModalLabel">添加商品</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm">
+                    <input type="hidden" id="product-id">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="product-name" class="form-label">商品名称</label>
+                            <input type="text" class="form-control" id="product-name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="product-category" class="form-label">分类</label>
+                            <select class="form-select" id="product-category" required>
+                                <!-- 分类选项将通过 JavaScript 动态加载 -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="product-points-price" class="form-label">积分价格</label>
+                            <input type="number" class="form-control" id="product-points-price" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="product-cash-price" class="form-label">现金价格</label>
+                            <input type="number" class="form-control" id="product-cash-price" step="0.01">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="product-stock" class="form-label">库存</label>
+                            <input type="number" class="form-control" id="product-stock" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="product-is-active" class="form-label">状态</label>
+                            <select class="form-select" id="product-is-active">
+                                <option value="true">上架</option>
+                                <option value="false">下架</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="product-description" class="form-label">描述</label>
+                        <textarea class="form-control" id="product-description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="product-image-url" class="form-label">图片URL</label>
+                        <input type="url" class="form-control" id="product-image-url">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveProduct()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+const perPage = 10;
+let productModal;
+
+$(document).ready(function() {
+    productModal = new bootstrap.Modal(document.getElementById('productModal'));
+    loadProducts();
+    loadCategories();
+});
+
+function loadProducts(page = 1) {
+    $.get(`/admin/api/products?page=${page}&per_page=${perPage}`)
+        .done(function(response) {
+            updateProductsTable(response.items);
+            updatePagination(response.total, response.pages, page);
+        })
+        .fail(function(error) {
+            showMessage('加载失败', '获取商品列表失败', 'error');
+        });
+}
+
+function updateProductsTable(products) {
+    const tbody = $('#productsTable tbody');
+    tbody.empty();
+
+    products.forEach(product => {
+        tbody.append(`
+            <tr>
+                <td>${product.name}</td>
+                <td>${product.category || '-'}</td>
+                <td>${product.points_price}</td>
+                <td>${formatPrice(product.cash_price)}</td>
+                <td>${product.stock}</td>
+                <td>
+                    <span class="badge bg-${product.is_active ? 'success' : 'danger'}">
+                        ${product.is_active ? '已上架' : '已下架'}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="editProduct('${product.id}')">
+                        <i class="bi bi-pencil"></i> 编辑
+                    </button>
+                    <button class="btn btn-sm btn-${product.is_active ? 'warning' : 'success'}"
+                            onclick="toggleProductStatus('${product.id}', ${!product.is_active})">
+                        <i class="bi bi-${product.is_active ? 'arrow-down-circle' : 'arrow-up-circle'}"></i>
+                        ${product.is_active ? '下架' : '上架'}
+                    </button>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+function updatePagination(total, pages, currentPage) {
+    const pagination = $('#pagination');
+    pagination.empty();
+
+    if (pages <= 1) return;
+
+    // 上一页
+    pagination.append(`
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadProducts(${currentPage - 1})">上一页</a>
+        </li>
+    `);
+
+    // 页码
+    for (let i = 1; i <= pages; i++) {
+        if (i === 1 || i === pages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            pagination.append(`
+                <li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="loadProducts(${i})">${i}</a>
+                </li>
+            `);
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            pagination.append('<li class="page-item disabled"><span class="page-link">...</span></li>');
+        }
+    }
+
+    // 下一页
+    pagination.append(`
+        <li class="page-item ${currentPage === pages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadProducts(${currentPage + 1})">下一页</a>
+        </li>
+    `);
+}
+
+function loadCategories() {
+    $.get('/admin/api/products/categories')
+        .done(function(categories) {
+            const categorySelect = $('#product-category');
+            categorySelect.empty();
+            categorySelect.append('<option value="">选择分类</option>');
+            categories.forEach(category => {
+                categorySelect.append(`<option value="${category}">${category}</option>`);
+            });
+        })
+        .fail(function(error) {
+            showMessage('加载失败', '获取商品分类失败', 'error');
+        });
+}
+
+function showAddProductModal() {
+    $('#productModalLabel').text('添加商品');
+    $('#product-id').val('');
+    $('#productForm')[0].reset();
+    productModal.show();
+}
+
+function editProduct(productId) {
+    $('#productModalLabel').text('编辑商品');
+    $('#product-id').val(productId);
+
+    $.get(`/admin/api/products/${productId}`)
+        .done(function(product) {
+            $('#product-name').val(product.name);
+            $('#product-category').val(product.category);
+            $('#product-points-price').val(product.points_price);
+            $('#product-cash-price').val(product.cash_price);
+            $('#product-stock').val(product.stock);
+            $('#product-is-active').val(product.is_active.toString());
+            $('#product-description').val(product.description);
+            $('#product-image-url').val(product.image_url);
+            productModal.show();
+        })
+        .fail(function(error) {
+            showMessage('加载失败', '获取商品数据失败', 'error');
+        });
+}
+
+function saveProduct() {
+    const productId = $('#product-id').val();
+    const productData = {
+        name: $('#product-name').val(),
+        category: $('#product-category').val(),
+        points_price: parseInt($('#product-points-price').val()),
+        cash_price: parseFloat($('#product-cash-price').val()) || null,
+        stock: parseInt($('#product-stock').val()),
+        is_active: $('#product-is-active').val() === 'true',
+        description: $('#product-description').val(),
+        image_url: $('#product-image-url').val()
+    };
+
+    const url = productId ? `/admin/api/products/${productId}` : '/admin/api/products';
+    const method = productId ? 'PUT' : 'POST';
+
+    $.ajax({
+        url: url,
+        method: method,
+        contentType: 'application/json',
+        data: JSON.stringify(productData),
+        success: function() {
+            productModal.hide();
+            loadProducts(currentPage);
+            showMessage('操作成功', productId ? '商品更新成功' : '商品添加成功');
+        },
+        error: function(error) {
+            showMessage('操作失败', productId ? '更新商品失败' : '添加商品失败', 'error');
+        }
+    });
+}
+
+function toggleProductStatus(productId, activate) {
+    const action = activate ? 'activate' : 'deactivate';
+    const confirmMessage = activate ? '确定要上架该商品吗？' : '确定要下架该商品吗？';
+
+    showConfirm('更改商品状态', confirmMessage, function() {
+        $.ajax({
+            url: `/admin/api/products/${productId}/${action}`,
+            method: 'PUT',
+            success: function() {
+                loadProducts(currentPage);
+                showMessage('操作成功', `商品已${activate ? '上架' : '下架'}`);
+            },
+            error: function(error) {
+                showMessage('操作失败', `商品${activate ? '上架' : '下架'}失败`, 'error');
+            }
+        });
+    });
+}
+</script>
+{% endblock %}

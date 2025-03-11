@@ -124,3 +124,27 @@ class UserService:
             db.session.commit()
             return True
         return False
+
+    @staticmethod
+    def get_all_users(page=1, per_page=20, sort_by='created_at', sort_order='desc', filter_by=None):
+        """获取所有用户，支持分页、排序和过滤"""
+        query = User.query
+
+        # 应用过滤条件
+        if filter_by:
+            if 'username' in filter_by:
+                query = query.filter(User.username.ilike(f"%{filter_by['username']}%"))
+            if 'email' in filter_by:
+                query = query.filter(User.email.ilike(f"%{filter_by['email']}%"))
+            if 'is_active' in filter_by:
+                query = query.filter(User.is_active == filter_by['is_active'])
+
+        # 应用排序
+        sort_column = getattr(User, sort_by, User.created_at)
+        if sort_order.lower() == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
+        # 分页
+        return query.paginate(page=page, per_page=per_page, error_out=False)
