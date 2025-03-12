@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify, logging, url_for, redirect
 from ..services.product_service import ProductService
 from ..services.user_service import UserService
-from ..utils.exceptions import AppError, AuthorizationError, ProductNotFoundError
+from ..utils.exceptions import AppError, AuthorizationError, ProductNotFoundError, InsufficientStockError, \
+    InsufficientPointsError
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from functools import wraps
 import logging
@@ -190,26 +191,64 @@ def get_product_detail(product_id):
             "message": "获取商品详情失败，请稍后再试"
         }), 500
 
-@product_bp.route('/<product_id>/exchange', methods=['POST'])
+@product_bp.route('/<product_id>/exchange', methods=['POST', 'OPTIONS'])
 @jwt_required()
 def exchange_product(product_id):
     """兑换商品"""
     user_id = get_jwt_identity()
+    logging.info(f"Exchange request received for product {product_id} by user {user_id}")
+
+    # 如果是 OPTIONS 请求，直接返回成功
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        return response
 
     try:
-        quantity = int(request.json.get('quantity', 1))
+        # 验证用户是否已登录
+        if not user_id:
+            logging.warning("Unauthorized access attempt")
+            return jsonify({"error": "请先登录"}), 401
+
+        # 获取请求参数
+        request_data = request.get_json()
+        if not request_data:
+            logging.warning(f"No JSON data in request for product exchange")
+            return jsonify({"error": "请求数据格式错误"}), 400
+
+        quantity = int(request_data.get('quantity', 1))
+        logging.info(f"Exchange quantity: {quantity}")
+
+        # 调用服务进行兑换
         result = ProductService.exchange_product(user_id, product_id, quantity)
+        logging.info(f"Exchange successful: {result}")
+
         return jsonify({
             "message": "兑换成功",
-            "order_id": result['order_id']
+            "order_id": result['order_id'],
+            "points_deducted": result['points_deducted'],
+            "quantity": result['quantity'],
+            "product_name": result['product_name']
         }), 200
     except ValueError as e:
+        logging.warning(f"Value error in exchange_product: {str(e)}")
         return jsonify({"error": str(e)}), 400
+    except InsufficientPointsError as e:
+        logging.warning(f"Insufficient points error: {str(e)}")
+        return jsonify({"error": "积分不足，无法完成兑换"}), 400
+    except ProductNotFoundError as e:
+        logging.warning(f"Product not found error: {str(e)}")
+        return jsonify({"error": "商品不存在"}), 404
+    except InsufficientStockError as e:
+        logging.warning(f"Insufficient stock error: {str(e)}")
+        return jsonify({"error": "商品库存不足"}), 400
     except AppError as e:
+        logging.error(f"Application error in exchange_product: {str(e)}")
         return jsonify({"error": str(e)}), e.status_code
     except Exception as e:
-        logging.error(f"Error in exchange_product: {str(e)}", exc_info=True)
-        return jsonify({"error": "兑换失败，请稍后再试"}), 500
+        logging.error(f"Unexpected error in exchange_product: {str(e)}", exc_info=True)
+        return jsonify({"error": "兑换失败，请稍后再试", "details": str(e)}), 500
 
 @product_bp.route('/<product_id>/price', methods=['GET'])
 def get_product_price(product_id):

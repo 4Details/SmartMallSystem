@@ -9,6 +9,7 @@ from .routes.user_routes import user_bp
 from .routes.points_routes import points_bp
 from .routes.product_routes import product_bp
 from .routes.admin_routes import admin_bp
+from .routes.order_routes import order_bp
 import os
 import logging
 from datetime import timedelta
@@ -37,7 +38,8 @@ def create_app(config_name=None):
         SESSION_TYPE='filesystem',
         SESSION_PERMANENT=True,
         SESSION_USE_SIGNER=True,
-        PERMANENT_SESSION_LIFETIME=timedelta(hours=2)
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=2),
+        WTF_CSRF_CHECK_DEFAULT=False  # 禁用默认的 CSRF 检查
     )
 
     if config:
@@ -51,8 +53,9 @@ def create_app(config_name=None):
     csrf = CSRFProtect(app)
 
     # 豁免特定路由的 CSRF 保护
-    csrf.exempt(user_bp)  # 为用户相关的路由豁免 CSRF 保护
-    csrf.exempt(admin_bp)  # 为管理员相关的路由豁免 CSRF 保护
+    csrf.exempt(user_bp)     # 为用户相关的路由豁免 CSRF 保护
+    csrf.exempt(admin_bp)    # 为管理员相关的路由豁免 CSRF 保护
+    csrf.exempt(product_bp)  # 为商品相关的路由豁免 CSRF 保护
 
     # JWT配置
     @jwt.user_identity_loader
@@ -103,7 +106,13 @@ def create_app(config_name=None):
         r"/*": {
             "origins": "*",  # 允许所有源
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+            "allow_headers": [
+                "Content-Type",
+                "Authorization",
+                "X-Requested-With",
+                "Accept",
+                "X-CSRFToken"
+            ],
             "expose_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True
         }
@@ -129,6 +138,7 @@ def create_app(config_name=None):
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(points_bp, url_prefix='/api/points')
     app.register_blueprint(product_bp, url_prefix='/api/products')
+    app.register_blueprint(order_bp, url_prefix='/api/orders')
     app.register_blueprint(admin_bp, url_prefix='/admin')
 
     # 添加管理员登录路由

@@ -137,6 +137,27 @@ def admin_users():
         session.pop('admin_user_id', None)
         return redirect(url_for('admin.admin_login'))
 
+@admin_bp.route('/points')
+@admin_required
+def points():
+    """积分管理页面"""
+    # 检查会话中是否有用户ID
+    user_id = session.get('admin_user_id')
+    if not user_id:
+        return redirect(url_for('admin.admin_login'))
+
+    try:
+        user = UserService.get_user_by_id(user_id)
+        if not user or 'admin' not in [role.name for role in user.roles]:
+            session.pop('admin_user_id', None)
+            return redirect(url_for('admin.admin_login'))
+
+        return render_template('admin/points.html', user=user)
+    except Exception as e:
+        logging.error(f"访问积分管理页面失败: {str(e)}")
+        session.pop('admin_user_id', None)
+        return redirect(url_for('admin.admin_login'))
+
 @admin_bp.route('/products')
 @admin_required
 def products():
@@ -347,13 +368,20 @@ def api_add_points():
     """管理员给用户添加积分"""
     data = request.json
     try:
+        # 通过邮箱获取用户ID
+        user = UserService.get_user_by_email(data['email'])
+
         transaction = PointsService.add_points(
-            user_id=data['user_id'],
+            user_id=user.id,
             points=data['points'],
             transaction_type='ADMIN_ADD',
             description=data.get('description', '管理员添加积分'),
             expires_in_days=data.get('expires_in_days')
         )
+
+        # 更新系统积分统计
+        PointsService.update_system_points_stats()
+
         return jsonify({
             "message": "Points added successfully",
             "transaction": transaction.to_dict()
@@ -368,18 +396,141 @@ def api_deduct_points():
     """管理员从用户扣除积分"""
     data = request.json
     try:
+        # 通过邮箱获取用户ID
+        user = UserService.get_user_by_email(data['email'])
+
         transaction = PointsService.deduct_points(
-            user_id=data['user_id'],
+            user_id=user.id,
             points=data['points'],
             transaction_type='ADMIN_DEDUCT',
             description=data.get('description', '管理员扣除积分')
         )
+
+        # 更新系统积分统计
+        PointsService.update_system_points_stats()
+
         return jsonify({
             "message": "Points deducted successfully",
             "transaction": transaction.to_dict()
         }), 200
     except Exception as e:
         logging.error(f"扣除积分失败: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/user_points_history/<user_id>')
+@admin_required
+def api_user_points_history(user_id):
+    """获取用户积分历史记录（通过用户ID）"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+
+        history = PointsService.get_user_points_history(user_id, page=page, per_page=per_page)
+
+        return jsonify({
+            "items": [transaction.to_dict() for transaction in history.items],
+            "page": history.page,
+            "pages": history.pages,
+            "per_page": history.per_page,
+            "total": history.total
+        }), 200
+    except Exception as e:
+        logging.error(f"获取用户积分历史记录失败: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/user_points_history_by_email/<email>')
+@admin_required
+def api_user_points_history_by_email(email):
+    """获取用户积分历史记录（通过用户邮箱）"""
+    try:
+        logging.info(f"获取用户积分历史记录，邮箱: {email}")
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        logging.info(f"分页参数: page={page}, per_page={per_page}")
+
+        # 通过邮箱获取用户ID
+        try:
+            user = UserService.get_user_by_email(email)
+            logging.info(f"找到用户: {user.id}, {user.username}")
+        except Exception as e:
+            logging.error(f"通过邮箱 {email} 查找用户失败: {str(e)}")
+            return jsonify({"error": f"找不到邮箱为 {email} 的用户"}), 404
+
+        try:
+            history = PointsService.get_user_points_history(user.id, page=page, per_page=per_page)
+            logging.info(f"获取到历史记录: {history.total} 条")
+        except Exception as e:
+            logging.error(f"获取用户 {user.id} 的积分历史记录失败: {str(e)}")
+            return jsonify({"error": f"获取积分历史记录失败: {str(e)}"}), 500
+
+        # 转换为字典并返回
+        try:
+            items = [transaction.to_dict() for transaction in history.items]
+            logging.info(f"返回 {len(items)} 条历史记录")
+            return jsonify({
+                "items": items,
+                "page": history.page,
+                "pages": history.pages,
+                "per_page": history.per_page,
+                "total": history.total
+            }), 200
+        except Exception as e:
+            logging.error(f"转换积分历史记录失败: {str(e)}")
+            return jsonify({"error": f"转换积分历史记录失败: {str(e)}"}), 500
+    except Exception as e:
+        logging.error(f"获取用户积分历史记录失败: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/points_overview')
+@admin_required
+def api_points_overview():
+    """获取系统积分总览"""
+    try:
+        total_points = PointsService.get_total_points_in_system()
+        active_points = PointsService.get_total_active_points()
+        expired_points = PointsService.get_total_expired_points()
+
+        return jsonify({
+            "total_points": total_points,
+            "active_points": active_points,
+            "expired_points": expired_points
+        }), 200
+    except Exception as e:
+        logging.error(f"获取系统积分总览失败: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/points_rules', methods=['GET', 'POST'])
+@admin_required
+def api_points_rules():
+    """获取或更新积分规则"""
+    if request.method == 'GET':
+        try:
+            rules = PointsService.get_points_rules()
+            return jsonify(rules), 200
+        except Exception as e:
+            logging.error(f"获取积分规则失败: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+    elif request.method == 'POST':
+        try:
+            new_rules = request.json
+            updated_rules = PointsService.update_points_rules(new_rules)
+            return jsonify(updated_rules), 200
+        except Exception as e:
+            logging.error(f"更新积分规则失败: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/expire_points', methods=['POST'])
+@admin_required
+def api_expire_points():
+    """手动触发积分过期"""
+    try:
+        expired_count = PointsService.expire_points()
+        return jsonify({
+            "message": "Points expiration process completed",
+            "expired_count": expired_count
+        }), 200
+    except Exception as e:
+        logging.error(f"手动触发积分过期失败: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/add_product', methods=['POST'])

@@ -31,24 +31,37 @@ class PointsTransaction(db.Model):
     def create_transaction(cls, user_id, points, transaction_type, description=None,
                          expires_at=None, related_entity_id=None, related_entity_type=None):
         """创建新的积分交易记录"""
-        transaction = cls(
-            user_id=user_id,
-            points=points,
-            transaction_type=transaction_type,
-            description=description,
-            expires_at=expires_at,
-            related_entity_id=related_entity_id,
-            related_entity_type=related_entity_type
-        )
-        db.session.add(transaction)
-        db.session.commit()
-        return transaction
+        import logging
+
+        logging.info(f"Creating new points transaction for user {user_id}")
+        logging.info(f"Transaction details: points={points}, type={transaction_type}, description={description}")
+
+        try:
+            transaction = cls(
+                user_id=user_id,
+                points=points,
+                transaction_type=transaction_type,
+                description=description,
+                expires_at=expires_at,
+                related_entity_id=related_entity_id,
+                related_entity_type=related_entity_type
+            )
+            db.session.add(transaction)
+            db.session.commit()
+            logging.info(f"Transaction created successfully: {transaction.id}")
+            return transaction
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error creating points transaction: {str(e)}", exc_info=True)
+            raise
 
     def to_dict(self):
         """将交易记录转换为字典"""
         return {
             'id': str(self.id),
             'user_id': str(self.user_id),
+            'username': self.user.username,
+            'email': self.user.email,
             'points': self.points,
             'transaction_type': self.transaction_type,
             'description': self.description,

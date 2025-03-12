@@ -255,43 +255,83 @@ class ProductService:
     def exchange_product(user_id, product_id, quantity=1):
         """兑换商品"""
         from ..services.points_service import PointsService
-        from ..models.order import Order
+        from ..models.order import Order, OrderItem
+        import logging
+        from sqlalchemy import exc
 
-        product = ProductService.get_product_by_id(product_id)
-        if not product.is_active:
-            raise ValueError("商品已下架")
+        logging.info(f"Starting product exchange for user {user_id}, product {product_id}, quantity {quantity}")
 
-        if product.stock < quantity:
-            raise ValueError("商品库存不足")
+        try:
+            # 开始数据库事务
+            db.session.begin_nested()
 
-        price_info = product.calculate_final_price(quantity)
-        total_points = price_info['final_points']
+            product = ProductService.get_product_by_id(product_id)
+            logging.info(f"Product retrieved: {product.name}, active: {product.is_active}, stock: {product.stock}")
 
-        # 检查用户积分是否足够
-        user_points = PointsService.get_user_points_balance(user_id)
-        if user_points < total_points:
-            raise ValueError("积分不足")
+            if not product.is_active:
+                logging.warning(f"Attempt to exchange inactive product: {product_id}")
+                raise ValueError("商品已下架")
 
-        # 创建订单
-        order = Order(user_id=user_id, total_points=total_points)
-        db.session.add(order)
+            if product.stock < quantity:
+                logging.warning(f"Insufficient stock for product {product_id}. Required: {quantity}, Available: {product.stock}")
+                raise ValueError("商品库存不足")
 
-        # 扣除积分
-        PointsService.deduct_points(
-            user_id=user_id,
-            points=total_points,
-            transaction_type="EXCHANGE",
-            description=f"兑换商品: {product.name}",
-            related_entity_id=str(order.id),
-            related_entity_type="Order"
-        )
+            price_info = product.calculate_final_price(quantity)
+            total_points = price_info['final_points']
+            logging.info(f"Calculated price: {total_points} points for {quantity} items")
 
-        # 更新库存
-        product.stock -= quantity
-        db.session.commit()
+            # 检查用户积分是否足够
+            user_points = PointsService.get_user_points_balance(user_id)
+            logging.info(f"User {user_id} current points balance: {user_points}")
+            if user_points < total_points:
+                logging.warning(f"Insufficient points for user {user_id}. Required: {total_points}, Available: {user_points}")
+                raise ValueError("积分不足")
 
-        return {
-            "order_id": str(order.id),
-            "points_deducted": total_points,
-            "quantity": quantity
-        }
+            # 创建订单
+            order = Order(user_id=user_id, total_points=total_points, status='COMPLETED')
+            db.session.add(order)
+            logging.info(f"Order created: {order.id}")
+
+            # 创建订单项
+            order_item = OrderItem(
+                order_id=order.id,
+                product_id=product_id,
+                quantity=quantity,
+                points_price=price_info['final_points'] // quantity  # 单个商品的积分价格
+            )
+            db.session.add(order_item)
+            logging.info(f"Order item created for order: {order.id}")
+
+            # 扣除积分
+            PointsService.deduct_points(
+                user_id=user_id,
+                points=total_points,
+                transaction_type="EXCHANGE",
+                description=f"兑换商品: {product.name} x {quantity}",
+                related_entity_id=str(order.id),
+                related_entity_type="Order"
+            )
+            logging.info(f"Points deducted for user {user_id}: {total_points}")
+
+            # 更新库存
+            product.stock -= quantity
+            logging.info(f"Updated stock for product {product_id}: {product.stock}")
+
+            # 提交事务
+            db.session.commit()
+            logging.info("Transaction committed successfully")
+
+            return {
+                "order_id": str(order.id),
+                "points_deducted": total_points,
+                "quantity": quantity,
+                "product_name": product.name
+            }
+        except exc.IntegrityError as e:
+            db.session.rollback()
+            logging.error(f"Database integrity error during product exchange: {str(e)}", exc_info=True)
+            raise ValueError("数据库完整性错误，可能是并发操作导致的。请稍后重试。")
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error during product exchange: {str(e)}", exc_info=True)
+            raise
